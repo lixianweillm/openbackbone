@@ -1,0 +1,43 @@
+{
+  "name": "openbackbone",
+  "version": "0.1.0",
+  "description": "OpenSpec extended to the documents a project needs to stay maintainable: roadmap, glossary, architecture, ADRs, and README.",
+  "bin": {
+    "openbackbone": "init.sh"
+  },
+  "files": [
+    "init.sh",
+    "AGENTS.md",
+    "skills.txt",
+    "skills/",
+    "templates/",
+    "openspec/schemas/",
+    "scripts/pre-commit.sh",
+    "docs/adr/README.md",
+    "README.zh-CN.md"
+  ],
+  "scripts": {
+    "test": "./scripts/regression-test.sh"
+  },
+  "keywords": [
+    "openspec",
+    "spec-driven",
+    "adr",
+    "glossary",
+    "domain-modeling",
+    "coding-agents",
+    "claude-code"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lixianweillm/openbackbone.git"
+  },
+  "homepage": "https://github.com/lixianweillm/openbackbone#readme",
+  "bugs": "https://github.com/lixianweillm/openbackbone/issues",
+  "author": "lixianweillm",
+  "license": "MIT",
+  "os": [
+    "darwin",
+    "linux"
+  ]
+}
