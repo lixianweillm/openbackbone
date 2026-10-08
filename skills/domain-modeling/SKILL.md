@@ -2,6 +2,8 @@
 name: domain-modeling
 description: Settle the project's domain language and durable decisions while designing. Use when a discussion, proposal, spec, or design introduces or blurs a domain term, when writing or editing GLOSSARY.md, or when deciding whether a decision deserves an ADR in docs/adr/.
 license: MIT
+metadata:
+  managed-by: openbackbone  # replaced on upgrade; delete this line to keep your edits
 ---
 
 # Domain Modeling

@@ -17,7 +17,7 @@ OpenSpec keeps a project's specs true. openbackbone extends the same discipline 
 
 ## Install
 
-Requires Git, Bash, and the [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec). Run in the root of your Git project:
+Requires Git 2.31 or newer, Bash, and the [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec). Run in the root of your Git project:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
@@ -44,9 +44,21 @@ cd /path/to/your-project
 | `--language` | `English` | Language for new OpenSpec artifacts (new projects only) |
 | `--yes` | off | Install the OpenSpec CLI without asking when it is missing. `OPENBACKBONE_YES=1` does the same |
 
-Rerun the installer to upgrade. It rewrites only what it manages: the marked block in `AGENTS.md` and `CLAUDE.md`, the schemas, the skills, `docs/adr/README.md`, and `scripts/pre-commit.sh`. Your roadmap, glossary, architecture overview, ADRs, and README are never overwritten. `.openbackbone.yaml` records what was installed and from which version; it changes only when an upgrade changes something, so commit it.
+### What the installer touches
 
-Only the `hooks` component can be skipped: when the directory is not a Git repository root, or `core.hooksPath` points outside the repository, the installer installs the rest and prints how to fix it. A `CLAUDE.md` that is a symlink or already imports `AGENTS.md` is left as it is.
+| Kind | Paths | On a rerun |
+|---|---|---|
+| Managed block | `AGENTS.md`, `CLAUDE.md` | Only the text between the `openbackbone` markers is replaced. The file is edited in place: a symlink stays a symlink |
+| Managed files | The skills, the two schemas, `docs/adr/README.md` | Replaced, as long as the file still carries its `managed-by: openbackbone` line |
+| Hook | `scripts/openbackbone-pre-commit.sh` and the shim in the hook directory | Replaced |
+| Seeded once | `ROADMAP.md`, `GLOSSARY.md`, `docs/architecture.md` | Never touched again |
+| Never written | `README.md`, your ADRs, your specs | |
+
+Rerun the installer to upgrade. A file of yours that happens to share a managed file's name is kept, not overwritten, and the installer lists what it kept. To customize a managed file and keep your edits across upgrades, delete its `managed-by: openbackbone` line. `openspec/config.yaml` keeps your settings; the default schema is changed only if it is unset or still OpenSpec's stock `spec-driven`.
+
+`.openbackbone.yaml` records what was installed and from which version. It changes only when an upgrade changes something, so commit it.
+
+Only the `hooks` component can be skipped: when the directory is not a Git repository root, or `core.hooksPath` points outside the repository, the installer installs the rest and prints how to fix it. An existing pre-commit hook keeps running before the checks. A `CLAUDE.md` that is the same file as `AGENTS.md`, or already imports it, gets no import.
 
 ## Work with it
 
@@ -70,13 +82,15 @@ An ADR is written only when a decision is hard to reverse, surprising without co
 
 ### The pre-commit hook
 
-It rejects a commit that:
+The hook judges a commit on what the commit touches. It rejects a commit that:
 
 - edits, renames, or deletes an ADR that is already on the main branch (a draft on your branch can be revised);
-- adds an ADR containing Requirement or Scenario sections;
+- adds an ADR containing `Requirement:` or `Scenario:` headings;
 - stages an `impact.md` with an empty section;
-- contains an invalid spec, or an invalid change that already has delta specs (a change with only a proposal can be committed);
+- stages a spec that fails validation, or a change with delta specs that fails validation (a change with only a proposal can be committed);
 - archives a change that still has open tasks.
+
+Specs and archives that were in the repository before never block a commit. To check everything, for example in CI, run `openspec validate --specs --strict`.
 
 `OPENBACKBONE_SKIP_HOOKS=1` bypasses it for maintenance.
 
@@ -88,7 +102,7 @@ AGENTS.md               the rules installed into target projects
 openspec/schemas/       spec-driven-with-impact (default), minimalist
 skills/                 domain-modeling, openspec-git-discipline, tech-doc
 templates/              starting roadmap, glossary, architecture overview
-scripts/                pre-commit checks, regression and end-to-end tests
+scripts/                the hook's checks, regression and end-to-end tests
 docs/                   architecture overview and ADRs for openbackbone itself
 ```
 

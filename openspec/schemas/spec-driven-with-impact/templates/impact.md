@@ -1,4 +1,5 @@
-<!-- Every section needs at least one entry. Every entry starts with one of:
+<!-- Keep the headings and the three markers below as written, in English.
+     Every section needs at least one entry. Every entry starts with one of:
      Updated: <path> - <what>      changed in this step
      Planned: <what>               must change when the implementation lands (becomes a task)
      Not affected: <reason>        a real reason -->

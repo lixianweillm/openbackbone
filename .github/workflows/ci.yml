@@ -10,7 +10,11 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     env:
       OPENSPEC_TELEMETRY: "0"
     steps:
@@ -20,15 +24,30 @@ jobs:
           node-version: 22
       - name: Install the OpenSpec CLI
         run: npm install -g @fission-ai/openspec@1
+      # macOS ships Bash 3.2, and that is what `curl | bash` runs there. Put it
+      # first on PATH so every script in this job runs under it.
+      - name: Use the stock Bash on macOS
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "$RUNNER_TEMP/stock-bash"
+          ln -s /bin/bash "$RUNNER_TEMP/stock-bash/bash"
+          echo "$RUNNER_TEMP/stock-bash" >> "$GITHUB_PATH"
+      - name: Show tool versions
+        run: |
+          bash --version | head -n 1
+          git --version
+          openspec --version
       - name: Lint shell scripts
+        if: runner.os == 'Linux'
         run: shellcheck init.sh scripts/*.sh
       - name: Regression tests
         run: ./scripts/regression-test.sh
       - name: End-to-end tests against the real OpenSpec CLI
         run: ./scripts/e2e-test.sh
-      - name: Validate the schema and this repository's specs
+      - name: Validate the schemas and this repository's specs
         run: |
           openspec schema validate spec-driven-with-impact
+          openspec schema validate minimalist
           openspec validate --specs --strict --no-interactive
           openspec validate --archived --no-interactive
       - name: Installed skills match skills/

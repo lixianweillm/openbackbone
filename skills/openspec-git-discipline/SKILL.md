@@ -2,6 +2,8 @@
 name: openspec-git-discipline
 description: Use when an OpenSpec change meets git - deciding what goes on which branch, when to commit artifacts, and when to archive relative to a merge.
 license: MIT
+metadata:
+  managed-by: openbackbone  # replaced on upgrade; delete this line to keep your edits
 ---
 
 # OpenSpec and Git

@@ -4,8 +4,8 @@
 # Installs the openbackbone workflow into the current project: OpenSpec with the
 # spec-driven-with-impact schema, the living-document skeleton (ROADMAP.md,
 # GLOSSARY.md, docs/architecture.md, docs/adr/), skills, and a pre-commit hook.
-# Merge-based and idempotent: existing user content is never overwritten;
-# rerunning upgrades managed content.
+# Merge-based and idempotent: rerunning upgrades what the installer manages,
+# and nothing a project already had is overwritten.
 #
 # Usage:
 #   ./init.sh [--with openspec,docs,skills,hooks] [--tools agents,claude] [--language English] [--yes]
@@ -28,6 +28,10 @@ DEFAULT_COMPONENTS="openspec docs skills hooks"
 MANIFEST=".${NAME}.yaml"
 DEFAULT_SCHEMA="spec-driven-with-impact"
 OPENSPEC_PACKAGE="@fission-ai/openspec@latest"
+# A managed file carries this line. The installer replaces only files that have
+# it; a project that deletes the line owns the file from then on.
+OWNER_MARK="managed-by: ${NAME}"
+HOOK_SCRIPT="scripts/${NAME}-pre-commit.sh"
 
 COMPONENTS="$DEFAULT_COMPONENTS"
 # agents = universal target (.agents/skills/ + AGENTS.md); claude = Claude Code
@@ -40,7 +44,8 @@ SRC=""
 SRC_TMP=""
 SRC_VERSION="unknown"
 INSTALLED=""
-MANAGED_EXTRA=""
+MANAGED_PATHS=""
+KEPT=""
 TARGET="$PWD"
 HAD_EXISTING_CODE=0
 
@@ -64,7 +69,7 @@ parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in
       --with)     COMPONENTS="$(printf '%s' "${2:?--with requires a value}" | tr ',' ' ')"; shift 2 ;;
-      --tools)    TOOLS="${2:?--tools requires a value}"; shift 2 ;;
+      --tools)    TOOLS="$(printf '%s' "${2:?--tools requires a value}" | tr -d '[:space:]')"; shift 2 ;;
       --language) LANGUAGE="${2:?--language requires a value}"; shift 2 ;;
       -y|--yes)   ASSUME_YES=1; shift ;;
       -h|--help)  usage ;;
@@ -82,6 +87,15 @@ parse_args() {
 has_component() { case " $COMPONENTS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 has_tool() { case ",$TOOLS," in *",$1,"*|*",all,"*) return 0 ;; *) return 1 ;; esac; }
 mark_installed() { INSTALLED="$INSTALLED $1"; }
+manage() { MANAGED_PATHS="${MANAGED_PATHS}  - $1"$'\n'; }
+note_kept() { KEPT="${KEPT}  - $1"$'\n'; }
+
+# True when the installer may replace path $1: it does not exist yet, or the
+# file $2 inside it still carries the ownership marker.
+ours() {
+  if [ ! -e "$1" ] && [ ! -L "$1" ]; then return 0; fi
+  grep -qF "$OWNER_MARK" "$2" 2>/dev/null
+}
 
 # Progressive installation: when a component is skipped, record the exact
 # remediation command and print a summary at the end
@@ -194,7 +208,9 @@ seed_file() {
 }
 
 # Insert or refresh the managed marker block in an instruction file. Content
-# outside the block belongs to the user and is left untouched.
+# outside the block belongs to the user and is left untouched. The file is
+# rewritten in place, never replaced, so a symlink stays a symlink and the
+# file keeps its permissions.
 merge_block() {
   local block_src="$1" target_md="$2" label tmp b e
   label="${target_md#"$TARGET"/}"
@@ -208,7 +224,8 @@ merge_block() {
   tmp="$(mktemp)"
   if [ "$b" = "0" ] && [ "$e" = "0" ]; then
     { cat "$target_md"; echo; echo "$MARKER_BEGIN"; cat "$block_src"; echo "$MARKER_END"; } > "$tmp"
-    mv "$tmp" "$target_md"
+    cat "$tmp" > "$target_md"
+    rm -f "$tmp"
     log "Appended managed marker block to existing ${label} (original content untouched)"
   elif [ "$b" = "1" ] && [ "$e" = "1" ]; then
     awk -v begin="$MARKER_BEGIN" -v end="$MARKER_END" -v src="$block_src" '
@@ -217,7 +234,8 @@ merge_block() {
       !skip { print }
       END { if (!seen || !closed || skip) exit 1 }
     ' "$target_md" > "$tmp" || { rm -f "$tmp"; die "Invalid managed ${label} marker order"; }
-    mv "$tmp" "$target_md"
+    cat "$tmp" > "$target_md"
+    rm -f "$tmp"
     log "Updated the managed marker block in ${label} (content outside the block untouched)"
   else
     rm -f "$tmp"
@@ -237,15 +255,16 @@ check_markers() {
   done
 }
 
-# A CLAUDE.md that is a symlink (usually to AGENTS.md) or that already imports
-# AGENTS.md outside the managed block reaches the rules without our help.
+# A CLAUDE.md that is the same file as AGENTS.md (a symlink in either
+# direction) or that already imports AGENTS.md outside the managed block
+# reaches the rules without our help.
 claude_needs_import() {
   local f="$TARGET/CLAUDE.md"
-  if [ -L "$f" ]; then
-    log "CLAUDE.md is a symlink; left as is"
+  [ -e "$f" ] || return 0
+  if [ "$f" -ef "$TARGET/AGENTS.md" ]; then
+    log "CLAUDE.md is the same file as AGENTS.md; no import needed"
     return 1
   fi
-  [ -f "$f" ] || return 0
   if awk -v begin="$MARKER_BEGIN" -v end="$MARKER_END" '
        $0 == begin { skip=1; next } $0 == end { skip=0; next }
        !skip && $0 == "@AGENTS.md" { found=1 } END { exit !found }' "$f"; then
@@ -261,7 +280,7 @@ merge_instructions() {
     return
   fi
   merge_block "$SRC/AGENTS.md" "$TARGET/AGENTS.md"
-  MANAGED_EXTRA="  - AGENTS.md  # marker block only"
+  manage "AGENTS.md  # marker block only"
   if has_tool claude && claude_needs_import; then
     # Claude Code reads CLAUDE.md, not AGENTS.md: import one from the other
     local import
@@ -269,7 +288,7 @@ merge_instructions() {
     echo '@AGENTS.md' > "$import"
     merge_block "$import" "$TARGET/CLAUDE.md"
     rm -f "$import"
-    MANAGED_EXTRA="${MANAGED_EXTRA}"$'\n'"  - CLAUDE.md  # marker block only"
+    manage "CLAUDE.md  # marker block only"
   fi
 }
 
@@ -284,26 +303,58 @@ install_openspec() {
   if [ ! -f "$TARGET/openspec/config.yaml" ]; then
     init_args+=(--language "$LANGUAGE")
   fi
-  (cd "$TARGET" && openspec init "${init_args[@]}" >/dev/null) \
+  # Output is discarded, so a question from the CLI would wait unseen. With
+  # standard input closed it decides for itself instead of asking.
+  (cd "$TARGET" && openspec init "${init_args[@]}" </dev/null >/dev/null) \
     || die "openspec init failed. To see why, run: cd ${TARGET} && openspec init --tools ${TOOLS}. Rerun this script once it succeeds; it picks up where this run stopped."
-  sync_dir "$SRC/openspec/schemas/$DEFAULT_SCHEMA" "$TARGET/openspec/schemas/$DEFAULT_SCHEMA"
-  sync_dir "$SRC/openspec/schemas/minimalist" "$TARGET/openspec/schemas/minimalist"
-  # Set the default schema (preserve the rest of the config)
-  local cfg="$TARGET/openspec/config.yaml" tmp
+  local schema dest
+  for schema in "$DEFAULT_SCHEMA" minimalist; do
+    dest="$TARGET/openspec/schemas/$schema"
+    if ours "$dest" "$dest/schema.yaml"; then
+      sync_dir "$SRC/openspec/schemas/$schema" "$dest"
+      manage "openspec/schemas/$schema/"
+    else
+      note_kept "openspec/schemas/$schema/"
+    fi
+  done
+  set_default_schema
+  mark_installed openspec
+  log "Component openspec: workspace and schemas ready (${DEFAULT_SCHEMA} for changes; minimalist for spikes)"
+}
+
+# Make ours the default schema on a configuration that has none or still has
+# OpenSpec's stock default. A project that chose another one keeps its choice.
+set_default_schema() {
+  local cfg="$TARGET/openspec/config.yaml" current="" tmp
+  if [ -f "$cfg" ]; then
+    current="$(sed -n 's/^schema:[[:space:]]*//p' "$cfg" | head -n 1 \
+      | sed 's/[[:space:]]*#.*$//' | tr -d "\"'\r" | sed 's/[[:space:]]*$//')"
+  fi
+  case "$current" in
+    "$DEFAULT_SCHEMA") return 0 ;;
+    ""|spec-driven) ;;
+    *) log "Default schema left as '${current}', the project's own choice"; return 0 ;;
+  esac
   tmp="$(mktemp)"
   if [ -f "$cfg" ] && grep -q '^schema:' "$cfg"; then
-    sed "s/^schema:.*/schema: $DEFAULT_SCHEMA/" "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+    sed "s/^schema:.*/schema: $DEFAULT_SCHEMA/" "$cfg" > "$tmp"
   else
-    { echo "schema: $DEFAULT_SCHEMA"; [ -f "$cfg" ] && cat "$cfg"; } > "$tmp" && mv "$tmp" "$cfg"
+    { echo "schema: $DEFAULT_SCHEMA"; [ ! -f "$cfg" ] || cat "$cfg"; } > "$tmp"
   fi
-  mark_installed openspec
-  log "Component openspec: workspace + both schemas installed (default ${DEFAULT_SCHEMA}; minimalist for spikes)"
+  cat "$tmp" > "$cfg"
+  rm -f "$tmp"
 }
 
 install_docs() {
+  local rules="$TARGET/docs/adr/README.md"
   mkdir -p "$TARGET/docs/adr"
-  [ "$SRC" = "$TARGET" ] || cp "$SRC/docs/adr/README.md" "$TARGET/docs/adr/README.md"
   if [ "$SRC" != "$TARGET" ]; then
+    if ours "$rules" "$rules"; then
+      cp "$SRC/docs/adr/README.md" "$rules"
+      manage "docs/adr/README.md"
+    else
+      note_kept "docs/adr/README.md"
+    fi
     seed_file "$SRC/templates/ROADMAP.md" "$TARGET/ROADMAP.md"
     seed_file "$SRC/templates/GLOSSARY.md" "$TARGET/GLOSSARY.md"
     seed_file "$SRC/templates/architecture.md" "$TARGET/docs/architecture.md"
@@ -312,14 +363,15 @@ install_docs() {
   log "Component docs: living-document skeleton ready (existing files kept; the template's own ADRs are not copied)"
 }
 
-SKILL_NAMES=""
 SKILL_DIRS=""
 
 install_skills() {
-  local f s d names=""
-  # Every agent that follows the AGENTS.md convention reads .agents/skills/
-  SKILL_DIRS=".agents/skills"
-  if has_tool claude; then SKILL_DIRS="$SKILL_DIRS .claude/skills"; fi
+  local f s d dest names=""
+  # Every agent that follows the AGENTS.md convention reads .agents/skills/;
+  # Claude Code reads .claude/skills/. Write only the ones that were asked for.
+  SKILL_DIRS=""
+  if [ "$TOOLS" != "claude" ]; then SKILL_DIRS=".agents/skills"; fi
+  if has_tool claude; then SKILL_DIRS="${SKILL_DIRS:+$SKILL_DIRS }.claude/skills"; fi
   for f in "$SRC"/openspec/schemas/*/skills.txt "$SRC/skills.txt"; do
     [ -f "$f" ] || continue
     while IFS= read -r s || [ -n "$s" ]; do
@@ -329,15 +381,20 @@ install_skills() {
       case " $names " in *" $s "*) continue ;; esac
       [ -d "$SRC/skills/$s" ] || { warn "Declared skill missing from the template repository: $s"; continue; }
       for d in $SKILL_DIRS; do
-        sync_dir "$SRC/skills/$s" "$TARGET/$d/$s"
+        dest="$TARGET/$d/$s"
+        if ours "$dest" "$dest/SKILL.md"; then
+          sync_dir "$SRC/skills/$s" "$dest"
+          manage "$d/$s/"
+        else
+          note_kept "$d/$s/"
+        fi
       done
       names="$names $s"
     done < "$f"
   done
   [ -n "$names" ] || { warn "Component skills skipped: no skills declared in any manifest"; return; }
-  SKILL_NAMES="$names"
   mark_installed skills
-  log "Component skills: installed${names} into ${SKILL_DIRS// /, }"
+  log "Component skills:${names} in ${SKILL_DIRS// /, }"
 }
 
 install_hooks() {
@@ -358,6 +415,14 @@ install_hooks() {
   local hook_dir hook common_dir
   hook_dir="$(git -C "$TARGET" rev-parse --path-format=absolute --git-path hooks)"
   common_dir="$(git -C "$TARGET" rev-parse --path-format=absolute --git-common-dir)"
+  # Git older than 2.31 echoes the option back instead of an absolute path
+  case "$hook_dir" in
+    /*) ;;
+    *)
+      warn "Component hooks skipped: Git 2.31 or newer is needed to locate the hook directory"
+      note_skip "hooks (this Git is too old)" "upgrade Git to 2.31 or newer, then rerun this script"
+      return ;;
+  esac
   case "$hook_dir/" in
     "$common_dir"/*|"$project_root"/*) ;;
     *)
@@ -370,31 +435,36 @@ install_hooks() {
   # Hook logic is versioned with the project so collaborators get upgrades by
   # pulling; the shim is generated by this script
   mkdir -p "$TARGET/scripts"
-  [ "$SRC" = "$TARGET" ] || cp "$SRC/scripts/pre-commit.sh" "$TARGET/scripts/pre-commit.sh"
-  chmod +x "$TARGET/scripts/pre-commit.sh"
+  [ "$SRC" = "$TARGET" ] || cp "$SRC/$HOOK_SCRIPT" "$TARGET/$HOOK_SCRIPT"
+  chmod +x "$TARGET/$HOOK_SCRIPT"
+  manage "$HOOK_SCRIPT"
 
   mkdir -p "$hook_dir"
   hook="$hook_dir/pre-commit"
   if [ -f "$hook" ] && ! grep -qF "$NAME hook shim" "$hook"; then
     local backup
     backup="$hook.backup.$(date +%Y%m%d%H%M%S)"
+    # mv keeps the mode: a hook that was disabled (not executable) stays disabled
     mv "$hook" "$backup"
-    chmod +x "$backup" 2>/dev/null || true
-    log "Existing pre-commit hook backed up as $(basename "$backup"); it will be chain-called"
+    if [ -x "$backup" ]; then
+      log "Existing pre-commit hook kept as $(basename "$backup"); it still runs, before the checks"
+    else
+      log "Existing pre-commit hook kept as $(basename "$backup"); it was not executable and still does not run"
+    fi
   fi
   cat > "$hook" <<'HOOK'
 #!/usr/bin/env bash
-# openbackbone hook shim (managed file, do not edit; logic lives in scripts/pre-commit.sh)
+# openbackbone hook shim (managed file, do not edit; the checks live in scripts/openbackbone-pre-commit.sh)
 set -uo pipefail
-repo_root="$(git rev-parse --show-toplevel)"
-hook_dir="$(git rev-parse --path-format=absolute --git-path hooks)"
+hook_dir="$(cd "$(dirname "$0")" && pwd)"
 for prev in "$hook_dir"/pre-commit.backup.*; do
   if [ -x "$prev" ] && ! grep -qF 'openbackbone hook shim' "$prev"; then
     "$prev" "$@" || exit $?
   fi
 done
-if [ -x "$repo_root/scripts/pre-commit.sh" ]; then
-  exec "$repo_root/scripts/pre-commit.sh" "$@"
+checks="$(git rev-parse --show-toplevel)/scripts/openbackbone-pre-commit.sh"
+if [ -x "$checks" ]; then
+  exec "$checks" "$@"
 fi
 HOOK
   chmod +x "$hook"
@@ -406,7 +476,7 @@ HOOK
 # timestamp, no hook path), so a rerun of the same version leaves it unchanged
 # and it can be committed.
 write_manifest() {
-  local c s d
+  local c
   {
     echo "# $NAME install manifest (managed file, maintained by init.sh)"
     echo "template: $NAME"
@@ -416,15 +486,7 @@ write_manifest() {
     echo "components:"
     for c in $INSTALLED; do echo "  - $c"; done
     echo "managed_paths:"
-    [ -z "$MANAGED_EXTRA" ] || echo "$MANAGED_EXTRA"
-    for c in $INSTALLED; do
-      case "$c" in
-        openspec) echo "  - openspec/schemas/" ;;
-        docs)     echo "  - docs/adr/README.md" ;;
-        skills)   for d in $SKILL_DIRS; do for s in $SKILL_NAMES; do echo "  - $d/$s/"; done; done ;;
-        hooks)    echo "  - scripts/pre-commit.sh" ;;
-      esac
-    done
+    printf '%s' "$MANAGED_PATHS"
   } > "$TARGET/$MANIFEST"
   log "Manifest written to ${MANIFEST} (rerun this script to upgrade managed content)"
 }
@@ -434,6 +496,12 @@ print_guidance() {
     echo
     log "The following components were skipped this run (the script is idempotent: fix the environment and rerun to fill the gap; installed content is unaffected):"
     printf '%s' "$SKIPPED"
+  fi
+  if [ -n "$KEPT" ]; then
+    echo
+    log "Kept as they are, because they do not carry the '${OWNER_MARK}' line (your own files, or ones you took over):"
+    printf '%s' "$KEPT"
+    echo "    To use ${NAME}'s version of one, delete it and rerun this script."
   fi
   echo
   log "Installation complete. Next steps:"

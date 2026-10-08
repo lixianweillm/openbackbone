@@ -22,8 +22,8 @@ openspec validate --specs --strict
 
 CI runs the same checks, plus `shellcheck`, on every pull request.
 
-Both scripts work in temporary repositories with an isolated Git configuration; they do not touch your global hooks, and the regression tests cannot reach your real npm.
+Both scripts work in temporary repositories with an isolated Git configuration; they do not touch your global hooks, and the regression tests cannot reach your real npm. CI runs them on Linux and on macOS under the stock Bash 3.2, so keep the scripts free of Bash 4 features and GNU-only options.
 
 ## Keep the documents true
 
-`AGENTS.md` is copied into every target project: keep it generic. `.agents/skills/` and `.claude/skills/` are this repository's own installation: after editing anything under `skills/`, run `./init.sh --with skills` and commit the result. Behavior changes update the matching spec in `openspec/specs/` through a change. A change to installer behavior, the schema, or the hook updates `docs/architecture.md` and both README languages in the same change. Existing ADRs are never edited; supersede them.
+`AGENTS.md` is copied into every target project: keep it generic. Every file the installer replaces on upgrade carries a `managed-by: openbackbone` line; keep that line when editing them here. `.agents/skills/` and `.claude/skills/` are this repository's own installation: after editing anything under `skills/`, run `./init.sh --with skills` and commit the result. Behavior changes update the matching spec in `openspec/specs/` through a change. A change to installer behavior, the schema, or the hook updates `docs/architecture.md` and both README languages in the same change. Existing ADRs are never edited; supersede them.

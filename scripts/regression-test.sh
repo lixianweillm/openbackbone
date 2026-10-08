@@ -55,6 +55,12 @@ run_install() {
     || { cat "$TEST_ROOT/output"; fail "installation failed"; }
 }
 
+# Permission string of a file, e.g. -rw-r--r--
+mode_of() {
+  # shellcheck disable=SC2012  # stat differs between GNU and BSD; ls -l does not
+  ls -ld "$1" | cut -c1-10
+}
+
 new_repo() {
   mkdir -p "$1"
   git -C "$1" init -q
@@ -85,6 +91,10 @@ test_default_installation() {
   [ -z "$(find "$target/docs/adr" -name '[0-9]*.md')" ] || fail "template ADRs leaked into the target"
   [ ! -e "$target/README.md" ] || fail "installer created a README"
   [ -x "$target/.git/hooks/pre-commit" ] || fail "missing hook"
+  [ -x "$target/scripts/openbackbone-pre-commit.sh" ] || fail "missing hook checks"
+  grep -qx '  - scripts/openbackbone-pre-commit.sh' "$target/.openbackbone.yaml" || fail "hook checks not in the manifest"
+  grep -qx '  - .claude/skills/domain-modeling/' "$target/.openbackbone.yaml" || fail "skill not in the manifest"
+  grep -qx '  - openspec/schemas/minimalist/' "$target/.openbackbone.yaml" || fail "schema not in the manifest"
   printf 'ok: default installation covers both agent targets and the document skeleton\n'
 }
 
@@ -95,6 +105,11 @@ test_tool_selection() {
   [ -f "$target/.agents/skills/domain-modeling/SKILL.md" ] || fail "agents skills missing"
   [ ! -e "$target/.claude" ] || fail "claude skills installed without the claude tool"
   [ ! -e "$target/CLAUDE.md" ] || fail "CLAUDE.md created without the claude tool"
+  mkdir -p "$TEST_ROOT/claude-only"
+  run_install "$TEST_ROOT/claude-only" --with skills --tools ' claude '
+  [ -f "$TEST_ROOT/claude-only/.claude/skills/domain-modeling/SKILL.md" ] || fail "claude skills missing"
+  [ ! -e "$TEST_ROOT/claude-only/.agents" ] || fail ".agents created for the claude target alone"
+  grep -qx '@AGENTS.md' "$TEST_ROOT/claude-only/CLAUDE.md" || fail "claude target did not get the import"
   mkdir -p "$TEST_ROOT/rejected"
   if (cd "$TEST_ROOT/rejected" && "$REPO_ROOT/init.sh" --with adr) > "$TEST_ROOT/output" 2>&1; then
     fail "unknown component was accepted"
@@ -108,6 +123,7 @@ test_user_content_preserved() {
   new_repo "$target"
   printf 'User prefix.\n%s\nOutdated managed instructions.\n%s\nUser suffix.\n' "$BEGIN" "$END" > "$target/AGENTS.md"
   printf 'My Claude notes.\n' > "$target/CLAUDE.md"
+  chmod 644 "$target/AGENTS.md" "$target/CLAUDE.md"
   printf '# Roadmap\n\n- Ship the thing\n' > "$target/ROADMAP.md"
   cp "$target/ROADMAP.md" "$TEST_ROOT/expected-roadmap"
   cat > "$target/.git/hooks/pre-commit" <<'HOOK'
@@ -131,6 +147,8 @@ HOOK
   [ "$(tail -n 1 "$target/AGENTS.md")" = 'User suffix.' ] || fail "suffix changed"
   ! grep -q 'Outdated managed instructions' "$target/AGENTS.md" || fail "managed block not refreshed"
   [ "$(head -n 1 "$target/CLAUDE.md")" = 'My Claude notes.' ] || fail "CLAUDE.md user content changed"
+  [ "$(mode_of "$target/AGENTS.md")" = '-rw-r--r--' ] || fail "AGENTS.md permissions changed"
+  [ "$(mode_of "$target/CLAUDE.md")" = '-rw-r--r--' ] || fail "CLAUDE.md permissions changed"
   [ "$(grep -cF "$BEGIN" "$target/CLAUDE.md")" = 1 ] || fail "duplicate CLAUDE.md blocks"
   [ "$(find "$target/.git/hooks" -name 'pre-commit.backup.*' | wc -l | tr -d ' ')" = 1 ] || fail "managed hook was backed up"
   (cd "$target" && OPENBACKBONE_SKIP_HOOKS=1 .git/hooks/pre-commit) > "$TEST_ROOT/output" 2>&1 || fail "hook failed"
@@ -169,22 +187,38 @@ CONFIG
   cp "$target/openspec/config.yaml" "$TEST_ROOT/expected-config"
   run_install "$target" --with openspec --language 'Simplified Chinese'
   cmp "$target/openspec/config.yaml" "$TEST_ROOT/expected-config" || fail "existing OpenSpec context changed"
-  printf 'ok: OpenSpec reinitialization preserves existing language and context\n'
+  [ "$(mode_of "$target/openspec/config.yaml")" = "$(mode_of "$TEST_ROOT/expected-config")" ] \
+    || fail "OpenSpec configuration permissions changed"
+
+  printf 'schema: minimalist  # ours\ncontext: keep\n' > "$target/openspec/config.yaml"
+  cp "$target/openspec/config.yaml" "$TEST_ROOT/expected-config"
+  run_install "$target" --with openspec
+  cmp "$target/openspec/config.yaml" "$TEST_ROOT/expected-config" || fail "the project's default schema was reset"
+  grep -q "left as 'minimalist'" "$TEST_ROOT/output" || fail "kept default schema not reported"
+
+  printf 'schema: "spec-driven"\ncontext: keep\n' > "$target/openspec/config.yaml"
+  run_install "$target" --with openspec
+  grep -qx 'schema: spec-driven-with-impact' "$target/openspec/config.yaml" || fail "stock default schema not replaced"
+  grep -qx 'context: keep' "$target/openspec/config.yaml" || fail "configuration lost content"
+  printf 'ok: OpenSpec configuration keeps its context; the default schema is set once\n'
 }
 
 # A directory holding every system tool except Node.js, npm, and the OpenSpec
 # CLI, so a test can run the installer where neither exists and can never
 # reach the real npm.
 make_bare_path() {
-  local tool name
+  local dirs i
   BARE_PATH="$TEST_ROOT/bare-bin"
   mkdir -p "$BARE_PATH"
-  for tool in /bin/* /usr/bin/*; do
-    name="$(basename "$tool")"
-    case "$name" in node|nodejs|npm|npx|corepack|openspec) continue ;; esac
-    [ ! -d "$tool" ] || continue
-    ln -sfn "$tool" "$BARE_PATH/$name"
+  # Mirror the caller's PATH. Walking it backwards and overwriting leaves the
+  # first match on PATH as the winner, as it is outside the sandbox.
+  IFS=: read -r -a dirs <<< "$PATH"
+  for (( i = ${#dirs[@]} - 1; i >= 0; i-- )); do
+    case "${dirs[i]}" in /*) ;; *) continue ;; esac
+    [ -d "${dirs[i]}" ] || continue
+    ln -sf "${dirs[i]}"/* "$BARE_PATH"/ 2>/dev/null || true
   done
+  (cd "$BARE_PATH" && rm -f node nodejs npm npx corepack openspec)
   if PATH="$BARE_PATH" command -v npm > /dev/null 2>&1 || PATH="$BARE_PATH" command -v openspec > /dev/null 2>&1; then
     fail "the bare PATH still reaches npm or openspec"
   fi
@@ -193,7 +227,6 @@ make_bare_path() {
 test_openspec_required() {
   local target="$TEST_ROOT/no-cli" npm_bin="$TEST_ROOT/fake-npm" calls="$TEST_ROOT/npm-calls"
   mkdir -p "$target" "$npm_bin"
-  make_bare_path
   cat > "$npm_bin/npm" <<'FAKE'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$FAKE_NPM_CALLS"
@@ -302,7 +335,7 @@ test_piped_upgrade() {
   # A project that is already installed must still be upgraded from the
   # published source, not mistaken for the source itself
   run_install "$target" --with openspec,skills --tools agents
-  printf 'stale\n' > "$target/openspec/schemas/spec-driven-with-impact/schema.yaml"
+  printf '# managed-by: openbackbone\nstale\n' > "$target/openspec/schemas/spec-driven-with-impact/schema.yaml"
   (cd "$target" && PATH="$TEST_ROOT/bin:$PATH" OPENBACKBONE_REPO="$source" bash -s -- --tools agents < "$REPO_ROOT/init.sh") \
     > "$TEST_ROOT/output" 2>&1 || { cat "$TEST_ROOT/output"; fail "piped installation failed"; }
   grep -q 'cloning' "$TEST_ROOT/output" || fail "piped installer did not fetch the published source"
@@ -325,36 +358,154 @@ test_claude_instructions() {
   cp "$imported/CLAUDE.md" "$TEST_ROOT/expected-claude-import"
   run_install "$imported" --with docs
   cmp "$imported/CLAUDE.md" "$TEST_ROOT/expected-claude-import" || fail "an existing AGENTS.md import was duplicated"
-  printf 'ok: CLAUDE.md symlinks and existing imports are left alone\n'
+
+  local reversed="$TEST_ROOT/agents-symlink" elsewhere="$TEST_ROOT/claude-elsewhere"
+  mkdir -p "$reversed" "$elsewhere/notes"
+  printf 'Project rules.\n' > "$reversed/CLAUDE.md"
+  ln -s CLAUDE.md "$reversed/AGENTS.md"
+  run_install "$reversed" --with docs
+  [ -L "$reversed/AGENTS.md" ] || fail "AGENTS.md symlink was replaced"
+  [ "$(head -n 1 "$reversed/CLAUDE.md")" = 'Project rules.' ] || fail "content behind the AGENTS.md symlink was lost"
+  [ "$(grep -cF "$BEGIN" "$reversed/CLAUDE.md")" = 1 ] || fail "managed block not written through the AGENTS.md symlink"
+  ! grep -qx '@AGENTS.md' "$reversed/CLAUDE.md" || fail "CLAUDE.md imports itself through the symlink"
+  run_install "$reversed" --with docs
+  [ "$(grep -cF "$BEGIN" "$reversed/CLAUDE.md")" = 1 ] || fail "rerun duplicated the block behind the symlink"
+
+  printf 'Claude notes.\n' > "$elsewhere/notes/claude.md"
+  ln -s notes/claude.md "$elsewhere/CLAUDE.md"
+  run_install "$elsewhere" --with docs
+  [ -L "$elsewhere/CLAUDE.md" ] || fail "CLAUDE.md symlink to another file was replaced"
+  grep -qx '@AGENTS.md' "$elsewhere/notes/claude.md" || fail "import not written through the CLAUDE.md symlink"
+  printf 'ok: instruction files that are symlinks stay symlinks; nothing imports itself\n'
+}
+
+test_ownership() {
+  local target="$TEST_ROOT/ownership" kept
+  new_repo "$target"
+  mkdir -p "$target/.claude/skills/domain-modeling" "$target/docs/adr" "$target/scripts" "$target/openspec/schemas/minimalist"
+  for kept in .claude/skills/domain-modeling/SKILL.md docs/adr/README.md scripts/pre-commit.sh openspec/schemas/minimalist/schema.yaml; do
+    printf 'MINE\n' > "$target/$kept"
+  done
+  run_install "$target"
+  for kept in .claude/skills/domain-modeling/SKILL.md docs/adr/README.md scripts/pre-commit.sh openspec/schemas/minimalist/schema.yaml; do
+    [ "$(cat "$target/$kept")" = MINE ] || fail "the project's own $kept was overwritten"
+  done
+  grep -q 'Kept as they are' "$TEST_ROOT/output" || fail "kept files not reported"
+  for kept in .claude/skills/domain-modeling/ docs/adr/README.md openspec/schemas/minimalist/; do
+    grep -qF "  - $kept" "$TEST_ROOT/output" || fail "$kept not named as kept"
+    ! grep -qxF "  - $kept" "$target/.openbackbone.yaml" || fail "$kept listed as managed"
+  done
+  [ -f "$target/.agents/skills/domain-modeling/ADR-FORMAT.md" ] || fail "the other agent target did not get the skill"
+  grep -qx '  - .agents/skills/domain-modeling/' "$target/.openbackbone.yaml" || fail "installed skill not in the manifest"
+
+  # Managed and still marked: an upgrade replaces local edits
+  printf 'local edit\n' >> "$target/.agents/skills/tech-doc/SKILL.md"
+  # Taken over by removing the marker: an upgrade keeps it
+  grep -v 'managed-by: openbackbone' "$target/.agents/skills/openspec-git-discipline/SKILL.md" > "$TEST_ROOT/taken-over"
+  printf 'our own rule\n' >> "$TEST_ROOT/taken-over"
+  cat "$TEST_ROOT/taken-over" > "$target/.agents/skills/openspec-git-discipline/SKILL.md"
+  grep -v 'managed-by: openbackbone' "$target/openspec/schemas/spec-driven-with-impact/schema.yaml" > "$TEST_ROOT/own-schema"
+  cat "$TEST_ROOT/own-schema" > "$target/openspec/schemas/spec-driven-with-impact/schema.yaml"
+  run_install "$target"
+  cmp -s "$target/.agents/skills/tech-doc/SKILL.md" "$REPO_ROOT/skills/tech-doc/SKILL.md" || fail "a marked skill was not upgraded"
+  cmp -s "$target/.agents/skills/openspec-git-discipline/SKILL.md" "$TEST_ROOT/taken-over" || fail "a skill the project took over was replaced"
+  cmp -s "$target/openspec/schemas/spec-driven-with-impact/schema.yaml" "$TEST_ROOT/own-schema" || fail "a schema the project took over was replaced"
+  grep -qF '  - .agents/skills/openspec-git-discipline/' "$TEST_ROOT/output" || fail "taken-over skill not reported as kept"
+  printf 'ok: same-named and taken-over files are kept; marked files are upgraded\n'
+}
+
+test_disabled_user_hook() {
+  local target="$TEST_ROOT/disabled-hook" backup
+  new_repo "$target"
+  printf '#!/bin/sh\necho ran >> disabled-hook.log\n' > "$target/.git/hooks/pre-commit"
+  chmod 644 "$target/.git/hooks/pre-commit"
+  run_install "$target" --with docs,hooks
+  backup="$(find "$target/.git/hooks" -name 'pre-commit.backup.*')"
+  [ -n "$backup" ] || fail "disabled hook was not kept"
+  [ ! -x "$backup" ] || fail "a disabled hook was made executable"
+  git -C "$target" add -A
+  git -C "$target" commit -q -m install > "$TEST_ROOT/output" 2>&1 || { cat "$TEST_ROOT/output"; fail "commit failed"; }
+  [ ! -e "$target/disabled-hook.log" ] || fail "a disabled hook ran"
+  printf 'ok: a disabled pre-commit hook stays disabled\n'
 }
 
 test_spec_validation_scope() {
   local target="$TEST_ROOT/validation" calls="$TEST_ROOT/validate-calls" bin="$TEST_ROOT/validate-bin"
   new_repo "$target"
   run_install "$target" --with docs,hooks
-  mkdir -p "$bin" "$target/openspec/changes/drafting" "$target/openspec/changes/specified/specs/export"
+  mkdir -p "$bin" "$target/openspec/changes/drafting" "$target/openspec/changes/specified/specs/export" \
+    "$target/openspec/specs/billing"
   cat > "$bin/openspec" <<'FAKE'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$VALIDATE_CALLS"
 case "$*" in *"${VALIDATE_REJECT:-none}"*) exit 1 ;; esac
 FAKE
   chmod +x "$bin/openspec"
+  git -C "$target" add -A
+  git -C "$target" commit -q -m install > "$TEST_ROOT/output" 2>&1 || fail "installation commit failed"
+
+  # The commit's own specs and changes are validated, one by one
+  : > "$calls"
   printf '## Why\n' > "$target/openspec/changes/drafting/proposal.md"
   printf '## ADDED Requirements\n' > "$target/openspec/changes/specified/specs/export/spec.md"
+  printf '# billing\n' > "$target/openspec/specs/billing/spec.md"
   git -C "$target" add -A
   PATH="$bin:$PATH" VALIDATE_CALLS="$calls" git -C "$target" commit -q -m 'work in progress' > "$TEST_ROOT/output" 2>&1 \
     || { cat "$TEST_ROOT/output"; fail "a proposal-only change blocked the commit"; }
-  grep -q '^validate --specs ' "$calls" || fail "specs were not validated"
-  grep -q '^validate specified --type change ' "$calls" || fail "a change with delta specs was not validated"
+  grep -qx 'validate billing --type spec --strict --no-interactive' "$calls" || fail "a staged spec was not validated"
+  grep -qx 'validate specified --type change --strict --no-interactive' "$calls" || fail "a change with delta specs was not validated"
   ! grep -q '^validate drafting ' "$calls" || fail "a change without delta specs was validated"
-  grep -q '^validate --archived ' "$calls" || fail "archived changes were not checked"
-  printf 'more\n' >> "$target/openspec/changes/drafting/proposal.md"
+  [ "$(wc -l < "$calls" | tr -d ' ')" = 2 ] || { cat "$calls"; fail "the hook validated more than the commit touched"; }
+
+  # A commit that touches nothing under openspec/ runs no validation
+  : > "$calls"
+  printf 'code\n' > "$target/main.c"
   git -C "$target" add -A
-  if PATH="$bin:$PATH" VALIDATE_CALLS="$calls" VALIDATE_REJECT=--archived git -C "$target" commit -q -m archived > "$TEST_ROOT/output" 2>&1; then
-    fail "an archived change with open tasks was committed"
+  PATH="$bin:$PATH" VALIDATE_CALLS="$calls" VALIDATE_REJECT=validate git -C "$target" commit -q -m 'unrelated' > "$TEST_ROOT/output" 2>&1 \
+    || { cat "$TEST_ROOT/output"; fail "an unrelated commit was rejected"; }
+  [ ! -s "$calls" ] || fail "an unrelated commit ran the OpenSpec CLI"
+
+  # A touched spec that fails validation blocks the commit
+  printf 'more\n' >> "$target/openspec/specs/billing/spec.md"
+  git -C "$target" add -A
+  if PATH="$bin:$PATH" VALIDATE_CALLS="$calls" VALIDATE_REJECT='billing --type spec' \
+      git -C "$target" commit -q -m 'invalid spec' > "$TEST_ROOT/output" 2>&1; then
+    fail "an invalid staged spec was committed"
   fi
-  grep -q 'still has open tasks' "$TEST_ROOT/output" || fail "open archived tasks not explained"
-  printf 'ok: changes are validated from their delta specs on; archives need finished tasks\n'
+  grep -q "spec 'billing' is invalid" "$TEST_ROOT/output" || fail "invalid spec not explained"
+  git -C "$target" reset -q
+  git -C "$target" checkout -q -- openspec/specs
+
+  # Without the CLI, validation is skipped with a notice and the commit goes through
+  printf 'more\n' >> "$target/openspec/specs/billing/spec.md"
+  git -C "$target" add -A
+  PATH="$BARE_PATH" git -C "$target" commit -q -m 'spec edit without the CLI' > "$TEST_ROOT/output" 2>&1 \
+    || { cat "$TEST_ROOT/output"; fail "a missing CLI blocked the commit"; }
+  grep -q 'openspec CLI not found, skipping spec validation' "$TEST_ROOT/output" || fail "skipped validation not reported"
+
+  # An archive from before the installation never blocks a commit
+  mkdir -p "$target/openspec/changes/archive/2020-01-01-old"
+  printf '## 1. Old\n\n- [ ] 1.1 never finished\n' > "$target/openspec/changes/archive/2020-01-01-old/tasks.md"
+  git -C "$target" add -A
+  OPENBACKBONE_SKIP_HOOKS=1 git -C "$target" commit -q -m 'history from before the installation' > "$TEST_ROOT/output" 2>&1
+  printf 'more code\n' >> "$target/main.c"
+  git -C "$target" add -A
+  git -C "$target" commit -q -m 'unrelated, after an old archive' > "$TEST_ROOT/output" 2>&1 \
+    || { cat "$TEST_ROOT/output"; fail "an old archive with open tasks blocked an unrelated commit"; }
+
+  # Archiving in this commit with an open task is rejected; no CLI is needed
+  mkdir -p "$target/openspec/changes/archive/2026-01-01-new"
+  printf '## 1. New\n\n- [x] 1.1 done\n- [ ] 1.2 README.md: document it\n' > "$target/openspec/changes/archive/2026-01-01-new/tasks.md"
+  git -C "$target" add -A
+  if PATH="$BARE_PATH" git -C "$target" commit -q -m 'archive with an open task' > "$TEST_ROOT/output" 2>&1; then
+    fail "a change was archived with an open task"
+  fi
+  grep -q 'archived with 1 open task' "$TEST_ROOT/output" || { cat "$TEST_ROOT/output"; fail "open archived task not explained"; }
+  git -C "$target" reset -q
+  printf '## 1. New\n\n- [x] 1.1 done\n- [x] 1.2 README.md: document it\n' > "$target/openspec/changes/archive/2026-01-01-new/tasks.md"
+  git -C "$target" add -A
+  git -C "$target" commit -q -m 'archive' > "$TEST_ROOT/output" 2>&1 || { cat "$TEST_ROOT/output"; fail "a finished archive was rejected"; }
+  printf 'ok: the hook validates what a commit touches, and nothing that was already there\n'
 }
 
 test_shared_hook_directory() {
@@ -380,8 +531,9 @@ expect_commit() {
 }
 
 test_discipline_hook() {
-  local target="$TEST_ROOT/discipline" change
+  local target="$TEST_ROOT/discipline" change default_branch
   new_repo "$target"
+  default_branch="$(git -C "$target" symbolic-ref --short HEAD)"
   # No openspec component: the hook's spec validation stays out of this test
   run_install "$target" --with docs,hooks
   git -C "$target" add -A
@@ -418,6 +570,22 @@ test_discipline_hook() {
   grep -q 'Requirement/Scenario' "$TEST_ROOT/output" || fail "spec-in-ADR message missing"
   rm "$target/docs/adr/0003-storage.md"
 
+  printf '# Pick a queue\n\n- Date: 2026-01-03\n- Supersedes: —\n\nWe chose the simpler one.\n\n## Requirements we weighed\n\nThroughput mattered most.\n' \
+    > "$target/docs/adr/0003-pick-a-queue.md"
+  git -C "$target" add -A
+  expect_commit pass "$target" 'an ADR whose heading only mentions requirements'
+
+  # File names that are not ASCII are checked like any other
+  git -C "$target" checkout -q "$default_branch"
+  printf '# 使用消息队列\n\n- Date: 2026-01-04\n- Supersedes: —\n\n因为简单。\n' > "$target/docs/adr/0009-使用消息队列.md"
+  git -C "$target" add -A
+  expect_commit pass "$target" 'a decision with a Chinese file name'
+  printf '\n改主意了。\n' >> "$target/docs/adr/0009-使用消息队列.md"
+  git -C "$target" add -A
+  expect_commit reject "$target" 'edit an accepted ADR with a Chinese file name'
+  grep -q 'must not be modified' "$TEST_ROOT/output" || fail "immutability missed a file name that is not ASCII"
+  git -C "$target" checkout -q -- docs/adr
+
   change="$target/openspec/changes/add-export"
   mkdir -p "$change"
   cp "$REPO_ROOT/openspec/schemas/spec-driven-with-impact/templates/impact.md" "$change/impact.md"
@@ -443,10 +611,32 @@ IMPACT
   printf -- '- Planned: document the export command\n' >> "$change/impact.md"
   git -C "$target" add -A
   expect_commit pass "$target" 'a complete impact review'
+
+  # Markers may be bold, bulleted either way, or use a full-width colon
+  mkdir -p "$target/openspec/changes/formatted"
+  cat > "$target/openspec/changes/formatted/impact.md" <<'IMPACT'
+## Decisions (docs/adr/)
+- **Not affected:** nothing durable was decided
+## Glossary (GLOSSARY.md)
+- **Updated**: GLOSSARY.md - added Export
+## Architecture (docs/architecture.md)
+* Planned：补充导出组件
+## Roadmap (ROADMAP.md)
+Not affected：计划外的工作
+## README (README.md)
+  - Planned: document the export command
+IMPACT
+  git -C "$target" add -A
+  expect_commit pass "$target" 'an impact review with formatted markers'
+  printf '## Decisions (docs/adr/)\n- Not affected:\n' > "$target/openspec/changes/formatted/impact.md"
+  git -C "$target" add -A
+  expect_commit reject "$target" 'a marker without a reason'
+  grep -q 'no entry for: Decisions' "$TEST_ROOT/output" || fail "a marker without a reason was accepted"
   printf 'ok: the hook guards ADR immutability, ADR scope, and impact reviews\n'
 }
 
 setup_openspec
+make_bare_path
 test_default_installation
 test_tool_selection
 test_user_content_preserved
@@ -458,6 +648,8 @@ test_worktree_hooks
 test_symlinked_entry_point
 test_piped_upgrade
 test_claude_instructions
+test_ownership
+test_disabled_user_hook
 test_shared_hook_directory
 test_spec_validation_scope
 test_discipline_hook

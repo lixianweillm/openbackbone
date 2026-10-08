@@ -7,6 +7,8 @@ description: |
   top-down, enforces active voice, grounds claims in runnable examples.
   Apply when writing or editing docs, reviewing a docs PR, or auditing for
   clarity.
+metadata:
+  managed-by: openbackbone  # replaced on upgrade; delete this line to keep your edits
 ---
 
 # tech-doc

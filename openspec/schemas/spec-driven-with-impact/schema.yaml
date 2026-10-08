@@ -1,3 +1,4 @@
+# managed-by: openbackbone (replaced on upgrade; delete this line to keep your edits)
 name: spec-driven-with-impact
 version: 1
 description: Default workflow - proposal → specs → design → impact → tasks (impact keeps ADRs, glossary, architecture, roadmap, and README in step with the change)
@@ -207,6 +208,12 @@ artifacts:
       lands. The tasks step turns each of these into a task.
 
       - `Not affected: <reason>` - a real reason, not "n/a".
+
+
+      Keep the five section headings and the three markers exactly as the
+      template writes them, in English, whatever language the rest of the
+      file is in. The pre-commit hook finds the sections and entries by
+      these words.
 
 
       Decisions and Glossary are settled at design time, so they are written

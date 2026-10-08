@@ -73,6 +73,11 @@ commit 'proposal only' || fail "a change with only a proposal could not be commi
 delta_spec "$change/specs/invoice-export"
 openspec validate add-export --type change --strict --no-interactive > "$OUT" 2>&1 \
   || fail "a spec in the documented format does not validate"
+printf '\n### Requirement: No scenario\nThe system SHALL do something nobody described.\n' >> "$change/specs/invoice-export/spec.md"
+if commit 'a requirement without a scenario'; then fail "an invalid delta spec was committed"; fi
+grep -q "change 'add-export' is invalid" "$OUT" || fail "invalid delta spec not explained"
+git reset -q
+delta_spec "$change/specs/invoice-export"
 cp openspec/schemas/spec-driven-with-impact/templates/impact.md "$change/impact.md"
 if commit 'empty impact review'; then fail "an unfilled impact review was committed"; fi
 git reset -q
@@ -102,5 +107,37 @@ sed -i.bak 's/- \[ \]/- [x]/' "$archived/tasks.md"
 rm "$archived/tasks.md.bak"
 commit 'archive' || fail "a finished archive was rejected"
 printf 'ok: the minimalist schema validates, commits, and archives\n'
+
+# --- an existing OpenSpec project: what was already there never blocks a commit ---
+mkdir -p openspec/changes/archive/2020-01-01-legacy openspec/specs/legacy
+printf '## 1. Legacy\n\n- [ ] 1.1 never finished\n' > openspec/changes/archive/2020-01-01-legacy/tasks.md
+cat > openspec/specs/legacy/spec.md <<'SPEC'
+# legacy Specification
+
+## Purpose
+
+TBD - created by archiving change legacy. Update Purpose after archive.
+
+## Requirements
+
+### Requirement: Legacy behavior
+The system SHALL keep working.
+
+#### Scenario: Still works
+- **WHEN** nothing changes
+- **THEN** nothing breaks
+SPEC
+if openspec validate legacy --type spec --strict --no-interactive > "$OUT" 2>&1; then
+  fail "the legacy fixture is expected to fail strict validation"
+fi
+git add -A
+OPENBACKBONE_SKIP_HOOKS=1 git commit -q -m 'state from before the installation' > "$OUT" 2>&1
+printf 'int main(void) { return 0; }\n' > main.c
+commit 'unrelated code' || fail "pre-existing specs or archives blocked an unrelated commit"
+printf '\n' >> openspec/specs/legacy/spec.md
+if commit 'touch the legacy spec'; then fail "a touched spec that fails validation was committed"; fi
+git reset -q
+git checkout -q -- openspec/specs
+printf 'ok: specs and archives from before the installation do not block commits\n'
 
 printf 'All end-to-end tests passed.\n'

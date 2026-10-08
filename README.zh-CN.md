@@ -17,7 +17,7 @@ OpenSpec 让项目的规格保持真实。openbackbone 把同样的纪律扩展�
 
 ## 安装
 
-需要 Git、Bash 和 [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec)。在你的 Git 项目根目录运行:
+需要 Git 2.31 或更高版本、Bash 和 [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec)。在你的 Git 项目根目录运行:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
@@ -44,9 +44,21 @@ cd /path/to/your-project
 | `--language` | `English` | 新建 OpenSpec 产物的语言(仅对新项目生效) |
 | `--yes` | 关闭 | 缺少 OpenSpec CLI 时不询问,直接安装。`OPENBACKBONE_YES=1` 效果相同 |
 
-重复运行即升级。安装器只重写它托管的内容:`AGENTS.md` 和 `CLAUDE.md` 中的标记区块、schema、skill、`docs/adr/README.md` 和 `scripts/pre-commit.sh`。你的路线图、术语表、架构概览、ADR 和 README 不会被覆盖。`.openbackbone.yaml` 记录安装的内容和来源版本;只有升级带来变化时它才会变,可以提交进版本库。
+### 安装器会动哪些文件
 
-只有 `hooks` 组件可能被跳过:当前目录不是 Git 仓库根目录,或 `core.hooksPath` 指向仓库之外时,安装器会装好其余组件并给出修复方法。如果 `CLAUDE.md` 是符号链接或已经引入了 `AGENTS.md`,安装器不会改动它。
+| 类别 | 路径 | 重复运行时 |
+|---|---|---|
+| 托管区块 | `AGENTS.md`、`CLAUDE.md` | 只替换 `openbackbone` 标记之间的内容。文件原地修改:符号链接仍是符号链接 |
+| 托管文件 | 各个 skill、两个 schema、`docs/adr/README.md` | 只要文件里还有 `managed-by: openbackbone` 这一行,就会被替换 |
+| 钩子 | `scripts/openbackbone-pre-commit.sh` 和钩子目录里的 shim | 替换 |
+| 只生成一次 | `ROADMAP.md`、`GLOSSARY.md`、`docs/architecture.md` | 不再改动 |
+| 从不写入 | `README.md`、你的 ADR、你的规格 | |
+
+重复运行即升级。如果你已有的文件恰好和托管文件同名,安装器会保留它而不是覆盖,并列出保留了哪些。想定制某个托管文件并在升级后保留改动,删掉其中的 `managed-by: openbackbone` 一行即可。`openspec/config.yaml` 中你的设置会保留;只有默认 schema 未设置或仍是 OpenSpec 自带的 `spec-driven` 时,才会改成本项目的 schema。
+
+`.openbackbone.yaml` 记录安装的内容和来源版本。只有升级带来变化时它才会变,可以提交进版本库。
+
+只有 `hooks` 组件可能被跳过:当前目录不是 Git 仓库根目录,或 `core.hooksPath` 指向仓库之外时,安装器会装好其余组件并给出修复方法。已有的 pre-commit 钩子会继续在检查之前运行。如果 `CLAUDE.md` 和 `AGENTS.md` 是同一个文件,或已经引入了它,安装器不会再添加引入。
 
 ## 使用
 
@@ -70,13 +82,15 @@ proposal → specs → design → impact → tasks → 实现 → 归档
 
 ### pre-commit 钩子
 
-以下提交会被拒绝:
+钩子只根据本次提交涉及的内容做判断。以下提交会被拒绝:
 
 - 修改、重命名或删除已在主分支上的 ADR(当前分支上的草稿可以修改);
-- 新增的 ADR 含有 Requirement 或 Scenario 小节;
+- 新增的 ADR 含有 `Requirement:` 或 `Scenario:` 标题;
 - 暂存的 `impact.md` 有空小节;
-- 含有无效的规格,或已有 delta spec 的变更无效(只有 proposal 的变更可以提交);
+- 暂存的规格校验失败,或已有 delta spec 的变更校验失败(只有 proposal 的变更可以提交);
 - 归档的变更仍有未完成的任务。
+
+仓库里原本就有的规格和归档不会阻止提交。需要整体检查时(例如在 CI 中),运行 `openspec validate --specs --strict`。
 
 维护时可用 `OPENBACKBONE_SKIP_HOOKS=1` 跳过。
 
@@ -88,7 +102,7 @@ AGENTS.md               安装到目标项目的规则
 openspec/schemas/       spec-driven-with-impact(默认)、minimalist
 skills/                 domain-modeling、openspec-git-discipline、tech-doc
 templates/              路线图、术语表、架构概览的起始模板
-scripts/                pre-commit 检查、回归测试和端到端测试
+scripts/                钩子的检查逻辑、回归测试和端到端测试
 docs/                   openbackbone 自身的架构概览和 ADR
 ```
 
