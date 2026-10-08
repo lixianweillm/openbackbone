@@ -8,11 +8,15 @@
 # rerunning upgrades managed content.
 #
 # Usage:
-#   ./init.sh [--with openspec,docs,skills,hooks] [--tools agents,claude] [--language English]
+#   ./init.sh [--with openspec,docs,skills,hooks] [--tools agents,claude] [--language English] [--yes]
 #   curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
+#
+# The OpenSpec CLI is required. If it is missing the installer offers to
+# install it with npm; --yes accepts without asking.
 #
 # Environment variables:
 #   OPENBACKBONE_REPO   Template repository URL (default https://github.com/lixianweillm/openbackbone)
+#   OPENBACKBONE_YES    Set to 1 for the same effect as --yes
 set -euo pipefail
 
 NAME="openbackbone"
@@ -23,6 +27,7 @@ ALL_COMPONENTS="openspec docs skills hooks"
 DEFAULT_COMPONENTS="openspec docs skills hooks"
 MANIFEST=".${NAME}.yaml"
 DEFAULT_SCHEMA="spec-driven-with-impact"
+OPENSPEC_PACKAGE="@fission-ai/openspec@latest"
 
 COMPONENTS="$DEFAULT_COMPONENTS"
 # agents = universal target (.agents/skills/ + AGENTS.md); claude = Claude Code
@@ -30,6 +35,7 @@ COMPONENTS="$DEFAULT_COMPONENTS"
 # to `openspec init`.
 TOOLS="agents,claude"
 LANGUAGE="English"
+ASSUME_YES="${OPENBACKBONE_YES:-}"
 SRC=""
 SRC_TMP=""
 SRC_VERSION="unknown"
@@ -43,7 +49,7 @@ warn() { printf '\033[1;33m[%s]\033[0m %s\n' "$NAME" "$*" >&2; }
 die()  { printf '\033[1;31m[%s]\033[0m %s\n' "$NAME" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,15p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
+  sed -n '2,19p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -53,6 +59,7 @@ parse_args() {
       --with)     COMPONENTS="$(printf '%s' "${2:?--with requires a value}" | tr ',' ' ')"; shift 2 ;;
       --tools)    TOOLS="${2:?--tools requires a value}"; shift 2 ;;
       --language) LANGUAGE="${2:?--language requires a value}"; shift 2 ;;
+      -y|--yes)   ASSUME_YES=1; shift ;;
       -h|--help)  usage ;;
       *) die "Unknown argument: ${1} (see --help)" ;;
     esac
@@ -73,6 +80,45 @@ mark_installed() { INSTALLED="$INSTALLED $1"; }
 # remediation command and print a summary at the end
 SKIPPED=""
 note_skip() { SKIPPED="${SKIPPED}  - $1"$'\n'"    Fix: $2"$'\n'; }
+
+# Ask a yes/no question on the terminal. Returns 0 for yes, 1 for no, and 2
+# when there is nobody to ask. Under `curl | bash` stdin is the script itself,
+# so the answer is read from /dev/tty.
+confirm() {
+  local answer=""
+  [ -z "${CI:-}" ] || return 2
+  if [ -t 0 ]; then
+    read -r -p "$1 [Y/n] " answer || return 1
+  elif { : < /dev/tty; } 2>/dev/null; then
+    read -r -p "$1 [Y/n] " answer < /dev/tty || return 1
+  else
+    return 2
+  fi
+  case "$answer" in ""|y|Y|yes|Yes|YES) return 0 ;; *) return 1 ;; esac
+}
+
+# openbackbone is OpenSpec plus more: without the CLI there is nothing to
+# install onto. Runs before the first write, so a refusal changes nothing.
+require_openspec() {
+  command -v openspec >/dev/null 2>&1 && return 0
+  local install="npm install -g $OPENSPEC_PACKAGE" answer=0
+  warn "The OpenSpec CLI is required and was not found."
+  command -v npm >/dev/null 2>&1 \
+    || die "npm was not found either. Install Node.js, run '${install}', then rerun this script. Nothing was changed."
+  if [ "$ASSUME_YES" != "1" ]; then
+    confirm "Install it now with '${install}'?" || answer=$?
+    case "$answer" in
+      1) die "OpenSpec CLI installation declined. Nothing was changed. To install it yourself: ${install}" ;;
+      2) die "Nobody to ask in a non-interactive shell. Run '${install}', or rerun with --yes to let this script do it. Nothing was changed." ;;
+    esac
+  fi
+  log "Running: ${install}"
+  npm install -g "$OPENSPEC_PACKAGE" \
+    || die "Could not install the OpenSpec CLI. Nothing was changed in this project. Fix the npm error above and rerun."
+  hash -r
+  command -v openspec >/dev/null 2>&1 \
+    || die "The OpenSpec CLI was installed but is not on PATH. Add npm's global bin directory to PATH and rerun. Nothing was changed in this project."
+}
 
 resolve_source() {
   local script_path script_dir link
@@ -221,15 +267,6 @@ merge_instructions() {
 }
 
 install_openspec() {
-  if ! command -v openspec >/dev/null 2>&1; then
-    local fix="npm install -g @fission-ai/openspec@latest"
-    if ! command -v npm >/dev/null 2>&1; then
-      fix="install Node.js first, then ${fix}"
-    fi
-    warn "Component openspec skipped: openspec CLI not found"
-    note_skip "openspec (workspace + schemas + workflow skills)" "${fix}; then rerun this script"
-    return
-  fi
   # openspec init is idempotent and refreshes its generated workflow skills.
   # Always run it: a previous attempt may have created openspec/ before failing
   # to finish the skills, and directory existence alone is not proof of a
@@ -241,9 +278,7 @@ install_openspec() {
     init_args+=(--language "$LANGUAGE")
   fi
   (cd "$TARGET" && openspec init "${init_args[@]}" >/dev/null) \
-    || { warn "openspec init failed; component openspec skipped"
-         note_skip "openspec (init failed)" "investigate, then rerun: cd ${TARGET} && openspec init --tools ${TOOLS}"
-         return; }
+    || die "openspec init failed. To see why, run: cd ${TARGET} && openspec init --tools ${TOOLS}. Rerun this script once it succeeds; it picks up where this run stopped."
   sync_dir "$SRC/openspec/schemas/$DEFAULT_SCHEMA" "$TARGET/openspec/schemas/$DEFAULT_SCHEMA"
   sync_dir "$SRC/openspec/schemas/minimalist" "$TARGET/openspec/schemas/minimalist"
   # Set the default schema (preserve the rest of the config)
@@ -421,6 +456,7 @@ main() {
   log "Tools: $TOOLS"
 
   check_markers
+  if has_component openspec; then require_openspec; fi
   merge_instructions
   if has_component openspec; then install_openspec; fi
   if has_component docs;     then install_docs; fi

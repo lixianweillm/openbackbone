@@ -17,11 +17,16 @@ OpenSpec keeps a project's specs true. openbackbone extends the same discipline 
 
 ## Install
 
-Requires Git, Bash, and the OpenSpec CLI. Run in the root of your Git project:
+Requires Git, Bash, and the [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec). Run in the root of your Git project:
 
 ```bash
-npm install -g @fission-ai/openspec@latest
 curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
+```
+
+If the OpenSpec CLI is missing, the installer offers to install it with `npm install -g @fission-ai/openspec@latest`. If you decline, or there is no terminal to ask on, it stops without changing anything. Pass `--yes` to accept in advance:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash -s -- --yes
 ```
 
 Or from a local clone:
@@ -37,10 +42,11 @@ cd /path/to/your-project
 | `--with` | `openspec,docs,skills,hooks` | Components to install |
 | `--tools` | `agents,claude` | Agent targets: `agents` writes `AGENTS.md` and `.agents/skills/`; `claude` adds `CLAUDE.md` and `.claude/skills/`. Other OpenSpec tool ids are passed to `openspec init` |
 | `--language` | `English` | Language for new OpenSpec artifacts (new projects only) |
+| `--yes` | off | Install the OpenSpec CLI without asking when it is missing. `OPENBACKBONE_YES=1` does the same |
 
 Rerun the installer to upgrade. It rewrites only what it manages: the marked block in `AGENTS.md` and `CLAUDE.md`, the schemas, the skills, `docs/adr/README.md`, and `scripts/pre-commit.sh`. Your roadmap, glossary, architecture overview, ADRs, and README are never overwritten. `.openbackbone.yaml` records what was installed and from which version; it changes only when an upgrade changes something, so commit it.
 
-If the OpenSpec CLI is missing, or `core.hooksPath` points outside the repository, that component is skipped and the installer prints how to fix it. A `CLAUDE.md` that is a symlink or already imports `AGENTS.md` is left as it is.
+Only the `hooks` component can be skipped: when the directory is not a Git repository root, or `core.hooksPath` points outside the repository, the installer installs the rest and prints how to fix it. A `CLAUDE.md` that is a symlink or already imports `AGENTS.md` is left as it is.
 
 ## Work with it
 

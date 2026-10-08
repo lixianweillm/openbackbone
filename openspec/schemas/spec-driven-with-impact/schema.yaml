@@ -91,10 +91,12 @@ artifacts:
       openspec/specs/<capability>/spec.md, copy the requirement from its
       heading to the end of its last scenario, paste it under
       `## MODIFIED Requirements`, then edit. Keep the heading text identical
-      to the original so the two can be matched. Archiving replaces the old
-      block with yours, so anything you leave out is deleted. When you are
-      only adding behavior beside what exists, use ADDED and leave the
-      original alone.
+      to the original so the two can be matched, and keep every existing
+      scenario: the block replaces the original whole, and OpenSpec rejects a
+      MODIFIED requirement that leaves one out. To drop a scenario, put the
+      requirement under REMOVED and add its replacement under ADDED with a
+      new name. When you are only adding behavior beside what exists, use
+      ADDED and leave the original alone.
 
 
       Shape of a delta spec:

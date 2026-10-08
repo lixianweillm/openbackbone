@@ -17,11 +17,16 @@ OpenSpec 让项目的规格保持真实。openbackbone 把同样的纪律扩展�
 
 ## 安装
 
-需要 Git、Bash 和 OpenSpec CLI。在你的 Git 项目根目录运行:
+需要 Git、Bash 和 [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec)。在你的 Git 项目根目录运行:
 
 ```bash
-npm install -g @fission-ai/openspec@latest
 curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
+```
+
+如果缺少 OpenSpec CLI,安装器会询问是否用 `npm install -g @fission-ai/openspec@latest` 安装。如果你拒绝,或者没有可供询问的终端,安装器会直接退出,不改动任何文件。加 `--yes` 可预先同意:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash -s -- --yes
 ```
 
 或使用本地源码:
@@ -37,10 +42,11 @@ cd /path/to/your-project
 | `--with` | `openspec,docs,skills,hooks` | 要安装的组件 |
 | `--tools` | `agents,claude` | agent 目标:`agents` 写入 `AGENTS.md` 和 `.agents/skills/`;`claude` 额外写入 `CLAUDE.md` 和 `.claude/skills/`。其他 OpenSpec 工具 id 会传给 `openspec init` |
 | `--language` | `English` | 新建 OpenSpec 产物的语言(仅对新项目生效) |
+| `--yes` | 关闭 | 缺少 OpenSpec CLI 时不询问,直接安装。`OPENBACKBONE_YES=1` 效果相同 |
 
 重复运行即升级。安装器只重写它托管的内容:`AGENTS.md` 和 `CLAUDE.md` 中的标记区块、schema、skill、`docs/adr/README.md` 和 `scripts/pre-commit.sh`。你的路线图、术语表、架构概览、ADR 和 README 不会被覆盖。`.openbackbone.yaml` 记录安装的内容和来源版本;只有升级带来变化时它才会变,可以提交进版本库。
 
-缺少 OpenSpec CLI,或 `core.hooksPath` 指向仓库之外时,对应组件会被跳过,安装器会给出修复方法。如果 `CLAUDE.md` 是符号链接或已经引入了 `AGENTS.md`,安装器不会改动它。
+只有 `hooks` 组件可能被跳过:当前目录不是 Git 仓库根目录,或 `core.hooksPath` 指向仓库之外时,安装器会装好其余组件并给出修复方法。如果 `CLAUDE.md` 是符号链接或已经引入了 `AGENTS.md`,安装器不会改动它。
 
 ## 使用
 

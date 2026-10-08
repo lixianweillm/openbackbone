@@ -7,6 +7,11 @@ TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/openbackbone-regressions.XXXXXX")"
 # Isolate from the developer's own git configuration (a global core.hooksPath
 # would redirect every hook installed below)
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+# Never prompt, even when the tests are started from a terminal
+export CI=true
+# A startup file named by BASH_ENV runs in every child shell and can put the
+# developer's real npm and openspec back on PATH
+unset BASH_ENV ENV
 BEGIN='<!-- openbackbone:begin -->'
 END='<!-- openbackbone:end -->'
 
@@ -167,6 +172,61 @@ CONFIG
   printf 'ok: OpenSpec reinitialization preserves existing language and context\n'
 }
 
+# A directory holding every system tool except Node.js, npm, and the OpenSpec
+# CLI, so a test can run the installer where neither exists and can never
+# reach the real npm.
+make_bare_path() {
+  local tool name
+  BARE_PATH="$TEST_ROOT/bare-bin"
+  mkdir -p "$BARE_PATH"
+  for tool in /bin/* /usr/bin/*; do
+    name="$(basename "$tool")"
+    case "$name" in node|nodejs|npm|npx|corepack|openspec) continue ;; esac
+    [ ! -d "$tool" ] || continue
+    ln -sfn "$tool" "$BARE_PATH/$name"
+  done
+  if PATH="$BARE_PATH" command -v npm > /dev/null 2>&1 || PATH="$BARE_PATH" command -v openspec > /dev/null 2>&1; then
+    fail "the bare PATH still reaches npm or openspec"
+  fi
+}
+
+test_openspec_required() {
+  local target="$TEST_ROOT/no-cli" npm_bin="$TEST_ROOT/fake-npm" calls="$TEST_ROOT/npm-calls"
+  mkdir -p "$target" "$npm_bin"
+  make_bare_path
+  cat > "$npm_bin/npm" <<'FAKE'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$FAKE_NPM_CALLS"
+cp "$FAKE_OPENSPEC" "$(dirname "$0")/openspec"
+FAKE
+  chmod +x "$npm_bin/npm"
+
+  if (cd "$target" && PATH="$npm_bin:$BARE_PATH" FAKE_NPM_CALLS="$calls" "$REPO_ROOT/init.sh") > "$TEST_ROOT/output" 2>&1; then
+    fail "installation succeeded without the OpenSpec CLI"
+  fi
+  grep -q 'OpenSpec CLI is required' "$TEST_ROOT/output" || fail "missing CLI not explained"
+  grep -q 'npm install -g @fission-ai/openspec' "$TEST_ROOT/output" || fail "install command not shown"
+  [ -z "$(ls -A "$target")" ] || fail "a refused installation changed the project"
+  [ ! -e "$calls" ] || fail "npm ran without consent"
+
+  (cd "$target" && PATH="$npm_bin:$BARE_PATH" FAKE_NPM_CALLS="$calls" "$REPO_ROOT/init.sh" --with docs) \
+    > "$TEST_ROOT/output" 2>&1 || { cat "$TEST_ROOT/output"; fail "a subset without openspec required the CLI"; }
+  rm -rf "$target" && mkdir -p "$target"
+
+  (cd "$target" && PATH="$npm_bin:$BARE_PATH" FAKE_NPM_CALLS="$calls" FAKE_OPENSPEC="$TEST_ROOT/bin/openspec" \
+    "$REPO_ROOT/init.sh" --yes) > "$TEST_ROOT/output" 2>&1 || { cat "$TEST_ROOT/output"; fail "--yes did not install the CLI and continue"; }
+  grep -qx 'install -g @fission-ai/openspec@latest' "$calls" || fail "npm was not asked to install the CLI"
+  grep -qx '  - openspec' "$target/.openbackbone.yaml" || fail "openspec component missing after --yes"
+  rm "$npm_bin/openspec"
+
+  rm -rf "$target" && mkdir -p "$target"
+  if (cd "$target" && PATH="$BARE_PATH" "$REPO_ROOT/init.sh" --yes) > "$TEST_ROOT/output" 2>&1; then
+    fail "installation succeeded without the CLI or npm"
+  fi
+  [ -z "$(ls -A "$target")" ] || fail "a failed prerequisite changed the project"
+  printf 'ok: the OpenSpec CLI is required; it is installed only with consent\n'
+}
+
 test_openspec_recovery() {
   local target="$TEST_ROOT/recovery-target" fake_bin="$TEST_ROOT/recovery-bin"
   local state="$TEST_ROOT/openspec-state"
@@ -175,6 +235,7 @@ test_openspec_recovery() {
 #!/usr/bin/env bash
 set -eu
 mkdir -p "$PWD/openspec"
+[ -z "${FAKE_ALWAYS_FAIL:-}" ] || exit 1
 if [ ! -f "$FAKE_OPEN_SPEC_STATE" ]; then
   : > "$FAKE_OPEN_SPEC_STATE"
   exit 1
@@ -186,10 +247,16 @@ FAKE
       > "$TEST_ROOT/output" 2>&1; then
     fail "incomplete OpenSpec initialization unexpectedly succeeded"
   fi
+  mkdir -p "$TEST_ROOT/recovery-multi"
+  if (cd "$TEST_ROOT/recovery-multi" && PATH="$fake_bin:$PATH" FAKE_OPEN_SPEC_STATE="$TEST_ROOT/never" FAKE_ALWAYS_FAIL=1 "$REPO_ROOT/init.sh") \
+      > "$TEST_ROOT/output" 2>&1; then
+    fail "a failed OpenSpec initialization was reported as success"
+  fi
   (cd "$target" && PATH="$fake_bin:$PATH" FAKE_OPEN_SPEC_STATE="$state" "$REPO_ROOT/init.sh" --with openspec) \
     > "$TEST_ROOT/output" 2>&1 || fail "rerun did not repair the incomplete OpenSpec initialization"
   [ -f "$target/openspec/schemas/spec-driven-with-impact/schema.yaml" ] || fail "rerun did not install the default schema"
   grep -qx '  - openspec' "$target/.openbackbone.yaml" || fail "manifest did not record the repaired component"
+  [ ! -e "$TEST_ROOT/recovery-multi/.openbackbone.yaml" ] || fail "a failed initialization wrote a manifest"
   printf 'ok: incomplete OpenSpec initialization self-heals on rerun\n'
 }
 
@@ -372,6 +439,7 @@ test_tool_selection
 test_user_content_preserved
 test_bad_markers
 test_existing_openspec_config
+test_openspec_required
 test_openspec_recovery
 test_worktree_hooks
 test_symlinked_entry_point
