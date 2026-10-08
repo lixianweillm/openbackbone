@@ -242,8 +242,9 @@ artifacts:
       a spec - cut it back to the choice and the reason.
 
 
-      Accepted ADRs are immutable: never edit, rename, or delete an existing
-      docs/adr/NNNN-*.md. To overturn one, write a new ADR whose
+      Accepted ADRs are immutable: never edit, rename, or delete a
+      docs/adr/NNNN-*.md that is on the main branch. One written earlier in
+      this same branch is still a draft and can be revised. To overturn one, write a new ADR whose
       `Supersedes:` field names it. Number new ADRs one above the highest
       existing number.
 

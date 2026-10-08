@@ -7,11 +7,15 @@ Reject, at commit time, the mistakes that let living documents drift and that a 
 ## Requirements
 
 ### Requirement: ADRs are immutable
-The pre-commit hook SHALL reject a commit that modifies, renames, or deletes an existing `docs/adr/NNNN-*.md` file.
+The pre-commit hook SHALL reject a commit that modifies, renames, or deletes a `docs/adr/NNNN-*.md` file that is on the default branch, and SHALL allow an ADR that exists only on the current branch to be revised.
 
 #### Scenario: Editing an ADR
-- **WHEN** a commit changes the text of an ADR that is already committed
+- **WHEN** a commit changes the text of an ADR that is on the default branch
 - **THEN** the commit is rejected with advice to add a superseding ADR
+
+#### Scenario: Revising a draft
+- **WHEN** a commit changes an ADR that was added on the current feature branch and is not on the default branch
+- **THEN** the commit is not rejected for that ADR
 
 #### Scenario: Adding an ADR
 - **WHEN** a commit adds a new numbered ADR file

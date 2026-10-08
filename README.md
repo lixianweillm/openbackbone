@@ -66,13 +66,13 @@ Use `openspec new change <name> --schema minimalist` for a spike.
 
 ### Decisions stay small
 
-An ADR is written only when a decision is hard to reverse, surprising without context, and the result of a real trade-off. It is a title that states the choice and a paragraph that gives the reason. Accepted ADRs are immutable; a new ADR supersedes an old one. See [docs/adr/README.md](./docs/adr/README.md).
+An ADR is written only when a decision is hard to reverse, surprising without context, and the result of a real trade-off. It is a title that states the choice and a paragraph that gives the reason. ADRs are immutable once merged; a new ADR supersedes an old one. See [docs/adr/README.md](./docs/adr/README.md).
 
 ### The pre-commit hook
 
 It rejects a commit that:
 
-- edits, renames, or deletes an existing ADR;
+- edits, renames, or deletes an ADR that is already on the main branch (a draft on your branch can be revised);
 - adds an ADR containing Requirement or Scenario sections;
 - stages an `impact.md` with an empty section;
 - contains an invalid spec, or an invalid change that already has delta specs (a change with only a proposal can be committed);

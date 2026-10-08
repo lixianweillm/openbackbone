@@ -57,4 +57,4 @@ The failure to guard against is the ADR that grows into a second spec. Hold ever
 - **One decision per ADR.** Two choices are two ADRs.
 - If the choice cannot be stated in one sentence, it has not been made yet. Go back to the discussion.
 
-Accepted ADRs are immutable. To overturn one, write a new ADR that names it in `Supersedes:` and leave the old file untouched. Format and numbering are in [ADR-FORMAT.md](./ADR-FORMAT.md).
+Accepted ADRs are immutable; one still on a feature branch is a draft and can be revised. To overturn an accepted one, write a new ADR that names it in `Supersedes:` and leave the old file untouched. Format and numbering are in [ADR-FORMAT.md](./ADR-FORMAT.md).

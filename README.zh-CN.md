@@ -66,13 +66,13 @@ proposal → specs → design → impact → tasks → 实现 → 归档
 
 ### 决策记录保持精简
 
-只有当一个决策难以逆转、脱离上下文会让人意外、并且来自真实权衡时,才写 ADR。它由一个陈述选择的标题和一段说明理由的文字组成。已接受的 ADR 不可修改,只能由新的 ADR 取代。见 [docs/adr/README.md](./docs/adr/README.md)。
+只有当一个决策难以逆转、脱离上下文会让人意外、并且来自真实权衡时,才写 ADR。它由一个陈述选择的标题和一段说明理由的文字组成。ADR 合并后不可修改,只能由新的 ADR 取代。见 [docs/adr/README.md](./docs/adr/README.md)。
 
 ### pre-commit 钩子
 
 以下提交会被拒绝:
 
-- 修改、重命名或删除已有 ADR;
+- 修改、重命名或删除已在主分支上的 ADR(当前分支上的草稿可以修改);
 - 新增的 ADR 含有 Requirement 或 Scenario 小节;
 - 暂存的 `impact.md` 有空小节;
 - 含有无效的规格,或已有 delta spec 的变更无效(只有 proposal 的变更可以提交);

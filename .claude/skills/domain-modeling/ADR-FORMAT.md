@@ -26,7 +26,7 @@ Nothing else. No Requirements, Scenarios, Design, Implementation, or Tasks secti
 
 ## Superseding
 
-Accepted ADRs are never edited, renamed, or deleted. To change a decision, write a new ADR, set `Supersedes: ADR-NNNN`, and say in the paragraph why the earlier choice no longer holds. An ADR is in force unless a later ADR's `Supersedes:` names it.
+Accepted ADRs are never edited, renamed, or deleted. An ADR is accepted once it is on the main branch; while it exists only on a feature branch it is a draft and can be revised. To change a decision, write a new ADR, set `Supersedes: ADR-NNNN`, and say in the paragraph why the earlier choice no longer holds. An ADR is in force unless a later ADR's `Supersedes:` names it.
 
 ## What usually qualifies
 

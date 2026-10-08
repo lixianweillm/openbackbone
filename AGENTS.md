@@ -28,7 +28,7 @@ Use `GLOSSARY.md` terms exactly as defined, in specs, docs, code identifiers, an
 
 An ADR records one decision and its reason, usually in a paragraph. Write one only when the decision is hard to reverse, surprising without context, and the result of a real trade-off; all three. Everything else stays in the change's `design.md`. An ADR that lists requirements, interfaces, or steps has become a spec: cut it back.
 
-Accepted ADRs are immutable. Overturn one by adding a new ADR whose `Supersedes:` field names it. An ADR is in force unless a later one supersedes it. See `docs/adr/README.md`.
+Accepted ADRs are immutable. An ADR is accepted once it is on the main branch; while it exists only on a feature branch it is a draft and can be revised. Overturn an accepted one by adding a new ADR whose `Supersedes:` field names it. An ADR is in force unless a later one supersedes it. See `docs/adr/README.md`.
 
 ## Roadmap
 
@@ -37,5 +37,4 @@ Accepted ADRs are immutable. Overturn one by adding a new ADR whose `Supersedes:
 ## Working habits
 
 - Prefer a diagram, table, or tree over long prose when explaining structure or flow.
-- Target the current product. Do not add backward-compatibility branches or migrations unless the user asks for them.
 - Create commits, branches, and merges only when asked.

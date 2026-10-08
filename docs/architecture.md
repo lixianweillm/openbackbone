@@ -61,7 +61,7 @@ flowchart LR
 
 Only what can be checked mechanically:
 
-- existing ADRs are unchanged;
+- ADRs already on the default branch are unchanged (a draft on the current branch can be revised);
 - a new ADR has no Requirement or Scenario sections;
 - a staged `impact.md` has an entry in all five sections;
 - specs are valid, and so is every change that has delta specs (earlier artifacts can be committed on their own);

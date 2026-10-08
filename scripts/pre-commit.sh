@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # openbackbone discipline hook. Before every commit it checks that:
-#   1. accepted ADRs are not modified, deleted, or renamed
+#   1. accepted ADRs (those on the default branch) are not modified, deleted,
+#      or renamed
 #   2. new ADRs record a decision, not a spec
 #   3. every staged impact.md accounts for all five living documents
 #   4. specs, changes that have reached their delta specs, and archived
@@ -18,16 +19,38 @@ fail=0
 adr_pattern='^docs/adr/[0-9]{4}-[^/]+\.md$'
 adr_soft_limit=40
 
-# --- Check 1: accepted ADRs are immutable (docs/adr/NNNN-*.md is append-only) ---
+# --- Check 1: accepted ADRs are immutable ---
+# An ADR is accepted once it is on the default branch. One that exists only on
+# the current branch is still a draft under review and can be revised.
+adr_base=HEAD
+for ref in origin/HEAD main master; do
+  if git rev-parse --verify -q "${ref}^{commit}" >/dev/null 2>&1; then
+    adr_base="$ref"
+    break
+  fi
+done
+adr_accepted() { git cat-file -e "${adr_base}:$1" 2>/dev/null; }
+
 adr_violations=""
 adr_added=""
 while IFS=$'\t' read -r status p1 p2; do
   [ -z "${status:-}" ] && continue
   printf '%s' "$p1" | grep -Eq "$adr_pattern" || continue
   case "$status" in
-    A*)    adr_added="${adr_added}${p1}"$'\n' ;;
-    R*)    adr_violations="${adr_violations}  ${status}  ${p1} -> ${p2}"$'\n' ;;
-    M*|D*) adr_violations="${adr_violations}  ${status}  ${p1}"$'\n' ;;
+    A*) adr_added="${adr_added}${p1}"$'\n' ;;
+    R*) if adr_accepted "$p1"; then
+          adr_violations="${adr_violations}  ${status}  ${p1} -> ${p2}"$'\n'
+        else
+          adr_added="${adr_added}${p2}"$'\n'
+        fi ;;
+    M*) if adr_accepted "$p1"; then
+          adr_violations="${adr_violations}  ${status}  ${p1}"$'\n'
+        else
+          adr_added="${adr_added}${p1}"$'\n'
+        fi ;;
+    D*) if adr_accepted "$p1"; then
+          adr_violations="${adr_violations}  ${status}  ${p1}"$'\n'
+        fi ;;
   esac
 done < <(git diff --cached --name-status -- docs/adr/ 2>/dev/null)
 

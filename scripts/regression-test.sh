@@ -398,12 +398,25 @@ test_discipline_hook() {
   grep -q 'must not be modified' "$TEST_ROOT/output" || fail "immutability message missing"
   git -C "$target" checkout -q -- docs/adr
 
+  # A draft that exists only on a feature branch can still be revised
+  git -C "$target" checkout -q -b feat/draft
+  printf '# Cache reads\n\n- Date: 2026-01-02\n- Supersedes: —\n\nFirst wording.\n' > "$target/docs/adr/0002-cache-reads.md"
+  git -C "$target" add -A
+  expect_commit pass "$target" 'a draft decision'
+  printf '# Cache reads\n\n- Date: 2026-01-02\n- Supersedes: —\n\nBetter wording after review.\n' > "$target/docs/adr/0002-cache-reads.md"
+  git -C "$target" add -A
+  expect_commit pass "$target" 'revise the draft'
+  printf '\nSecond thoughts.\n' >> "$target/docs/adr/0001-use-files-for-state.md"
+  git -C "$target" add -A
+  expect_commit reject "$target" 'edit an accepted ADR from a feature branch'
+  git -C "$target" checkout -q -- docs/adr
+
   printf '# Storage\n\n## Requirement: persist state\n\nThe system SHALL persist state.\n' \
-    > "$target/docs/adr/0002-storage.md"
+    > "$target/docs/adr/0003-storage.md"
   git -C "$target" add -A
   expect_commit reject "$target" 'an ADR that is really a spec'
   grep -q 'Requirement/Scenario' "$TEST_ROOT/output" || fail "spec-in-ADR message missing"
-  rm "$target/docs/adr/0002-storage.md"
+  rm "$target/docs/adr/0003-storage.md"
 
   change="$target/openspec/changes/add-export"
   mkdir -p "$change"
