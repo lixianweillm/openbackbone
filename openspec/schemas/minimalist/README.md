@@ -25,4 +25,4 @@ spike makes untrue.
 
 Declared in `skills.txt` and installed by `init.sh` for every selected agent target:
 
-- `openspec-git-discipline`: git checkpoints for propose, apply, and archive.
+- `openspec-git-discipline`: one change, one branch, one pull request; when to split, and what goes wrong.

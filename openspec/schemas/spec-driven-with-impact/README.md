@@ -38,4 +38,4 @@ choice and the reason in a paragraph. Everything else about the change stays in
 Declared in `skills.txt` and installed by `init.sh`:
 
 - `domain-modeling`: settles terms into `GLOSSARY.md` and decides whether a decision earns an ADR.
-- `openspec-git-discipline`: git checkpoints for propose, apply, and archive.
+- `openspec-git-discipline`: one change, one branch, one pull request; when to split, and what goes wrong.
