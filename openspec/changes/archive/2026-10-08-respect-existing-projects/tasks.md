@@ -19,7 +19,7 @@
 
 - [x] 3.1 Regression tests for every scenario added or modified by this change
 - [x] 3.2 End-to-end test: an archive from before the installation does not block a commit
-- [ ] 3.3 CI: a macOS job that runs both test scripts under the stock Bash 3.2
+- [x] 3.3 CI: a macOS job that runs both test scripts under the stock Bash 3.2
 
 ## 4. Living documents
 
