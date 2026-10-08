@@ -1,27 +1,13 @@
-## ADDED User Stories
+## Purpose
 
-### User Story: <capability or behavior>
-As a <role>, I want <capability>, so that <benefit>.
+<!-- New capability only: what it is for, in one or two sentences.
+     Delete this section when the capability already exists. -->
 
-#### Acceptance Criteria
-- **Given** <context>
-- **When** <condition>
-- **Then** <expected outcome>
+## ADDED Requirements
 
-## MODIFIED User Stories
+### Requirement: <!-- name -->
+<!-- One statement using SHALL or MUST. -->
 
-### User Story: <existing capability or behavior>
-As a <role>, I want <updated capability>, so that <updated benefit>.
-
-#### Acceptance Criteria
-- **Given** <context>
-- **When** <updated condition>
-- **Then** <updated expected outcome>
-
-## REMOVED User Stories
-
-### User Story: <removed capability or behavior>
-As a <role>, I wanted <removed capability>, so that <previous benefit>.
-
-#### Removal Rationale
-Explain why this user story is removed.
+#### Scenario: <!-- name -->
+- **WHEN** <!-- what happens -->
+- **THEN** <!-- what the system does -->

@@ -28,7 +28,9 @@ Optional, only when they add something: `## Rejected` (alternatives likely to be
 ## Rules
 
 - File names are `NNNN-kebab-title.md`: four digits, repository-wide, increasing, never reused.
-- **Accepted ADRs are immutable.** To overturn one, add a new ADR whose `Supersedes:` field names it, and leave the old file alone.
+- **Accepted ADRs are immutable.** An ADR is accepted once it is on the main branch; while it exists only on a feature branch it is a draft and can be revised. To overturn an accepted one, add a new ADR whose `Supersedes:` field names it, and leave the old file alone.
 - An ADR is in force unless a later ADR's `Supersedes:` names it.
 
-The pre-commit hook rejects edits to existing ADRs and ADRs that contain Requirement or Scenario sections.
+The pre-commit hook rejects edits to accepted ADRs, and ADRs that contain `Requirement:` or `Scenario:` headings.
+
+<!-- managed-by: openbackbone (replaced on upgrade; delete this line to keep your edits) -->

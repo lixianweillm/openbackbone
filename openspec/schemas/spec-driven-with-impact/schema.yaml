@@ -1,3 +1,4 @@
+# managed-by: openbackbone (replaced on upgrade; delete this line to keep your edits)
 name: spec-driven-with-impact
 version: 1
 description: Default workflow - proposal → specs → design → impact → tasks (impact keeps ADRs, glossary, architecture, roadmap, and README in step with the change)
@@ -59,6 +60,12 @@ artifacts:
       that term first (domain-modeling skill), not to invent one inline.
 
 
+      For a NEW capability, open the file with a `## Purpose` section: one
+      or two sentences on what the capability is for. Archiving copies it
+      into the main spec, and a main spec without a written purpose fails
+      validation. Leave the section out when the capability already exists.
+
+
       A delta spec is built from up to four second-level sections. Use only
       the ones you need:
 
@@ -91,15 +98,23 @@ artifacts:
       openspec/specs/<capability>/spec.md, copy the requirement from its
       heading to the end of its last scenario, paste it under
       `## MODIFIED Requirements`, then edit. Keep the heading text identical
-      to the original so the two can be matched. Archiving replaces the old
-      block with yours, so anything you leave out is deleted. When you are
-      only adding behavior beside what exists, use ADDED and leave the
-      original alone.
+      to the original so the two can be matched, and keep every existing
+      scenario: the block replaces the original whole, and OpenSpec rejects a
+      MODIFIED requirement that leaves one out. To drop a scenario, put the
+      requirement under REMOVED and add its replacement under ADDED with a
+      new name. When you are only adding behavior beside what exists, use
+      ADDED and leave the original alone.
 
 
       Shape of a delta spec:
 
       ```
+
+      ## Purpose
+
+
+      Let a Customer keep their own copy of their Invoices.
+
 
       ## ADDED Requirements
 
@@ -195,6 +210,12 @@ artifacts:
       - `Not affected: <reason>` - a real reason, not "n/a".
 
 
+      Keep the five section headings and the three markers exactly as the
+      template writes them, in English, whatever language the rest of the
+      file is in. The pre-commit hook finds the sections and entries by
+      these words.
+
+
       Decisions and Glossary are settled at design time, so they are written
       NOW (`Updated` or `Not affected`, never `Planned`). Architecture and
       README describe shipped behavior, so they are normally `Planned`.
@@ -228,8 +249,9 @@ artifacts:
       a spec - cut it back to the choice and the reason.
 
 
-      Accepted ADRs are immutable: never edit, rename, or delete an existing
-      docs/adr/NNNN-*.md. To overturn one, write a new ADR whose
+      Accepted ADRs are immutable: never edit, rename, or delete a
+      docs/adr/NNNN-*.md that is on the main branch. One written earlier in
+      this same branch is still a draft and can be revised. To overturn one, write a new ADR whose
       `Supersedes:` field names it. Number new ADRs one above the highest
       existing number.
 

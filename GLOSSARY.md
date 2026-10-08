@@ -27,6 +27,10 @@ _Avoid_: Active, current, valid
 **Managed block**:
 The marker-delimited part of an instruction file that the installer owns and rewrites; everything outside it belongs to the project.
 
+**Ownership marker**:
+The line `managed-by: openbackbone` inside an installed file. The installer replaces only files that carry it; a project that removes it owns the file from then on.
+_Avoid_: Tag, stamp, signature
+
 **Component**:
 One independently selectable part of an installation: `openspec`, `docs`, `skills`, or `hooks`.
 _Avoid_: Module, plugin

@@ -1,16 +1,42 @@
+# managed-by: openbackbone (replaced on upgrade; delete this line to keep your edits)
 name: minimalist
 version: 1
-description: Lightweight schema for well-scoped, low-risk changes
+description: Light path for spikes and small, low-risk changes - specs → tasks
 artifacts:
   - id: specs
     generates: specs/**/*.md
-    description: Specifications authored as user stories with Given/When/Then acceptance criteria
+    description: The behavior this change adds, alters, or removes
     template: specs/spec.md
+    instruction: >
+      Write the delta specs straight away; this schema has no proposal or
+      design. One file per capability at specs/<capability>/spec.md, using
+      the folder name under openspec/specs/ when the capability exists.
+
+
+      For a new capability, open the file with a `## Purpose` section of one
+      or two sentences; leave it out when the capability already exists.
+
+
+      Use GLOSSARY.md terms as defined. Group requirements under
+      `## ADDED Requirements`, `## MODIFIED Requirements` (the whole
+      requirement, every existing scenario included), or
+      `## REMOVED Requirements` (with a **Reason** and a **Migration**).
+
+
+      A requirement is `### Requirement: <name>` followed by a SHALL or MUST
+      statement. Each has at least one `#### Scenario: <name>` with **WHEN**
+      and **THEN** bullets. Scenarios must be fourth-level headings or
+      OpenSpec does not see them.
     requires: []
   - id: tasks
     generates: tasks.md
-    description: Implementation checklist with trackable tasks
+    description: The checklist that implements the change
     template: tasks.md
+    instruction: >
+      Write the work as `- [ ] <group>.<n> <what to do>` lines under
+      `## <n>. <group>` headings, in the order it must be done. If the
+      spike makes a living document untrue (README, architecture overview,
+      glossary, roadmap), add a task to fix that document.
     requires:
       - specs
 apply:

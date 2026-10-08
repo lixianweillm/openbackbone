@@ -1,10 +1,4 @@
-# commit-discipline Specification
-
-## Purpose
-
-Reject, at commit time, the mistakes that let living documents drift and that a script can detect without judgment.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: ADRs are immutable
 The pre-commit hook SHALL reject a commit that modifies, renames, or deletes a `docs/adr/NNNN-*.md` file that is on the default branch, whatever characters its name contains, and SHALL allow an ADR that exists only on the current branch to be revised.
@@ -80,10 +74,3 @@ The pre-commit hook SHALL reject a commit that archives a change with an uncheck
 #### Scenario: Archive from before the installation
 - **WHEN** the repository already holds an archived change with unchecked tasks and a commit does not touch it
 - **THEN** the commit is not rejected
-
-### Requirement: Maintenance bypass
-The pre-commit hook SHALL skip all checks when `OPENBACKBONE_SKIP_HOOKS=1` is set, and SHALL say that it did.
-
-#### Scenario: Bypass
-- **WHEN** a commit is made with `OPENBACKBONE_SKIP_HOOKS=1`
-- **THEN** no check runs and a notice is printed

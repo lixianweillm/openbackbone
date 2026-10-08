@@ -17,8 +17,15 @@ The installer SHALL install the components `openspec`, `docs`, `skills`, and `ho
 - **WHEN** `--with` names a component that does not exist
 - **THEN** the installer exits with an error and changes no file
 
+### Requirement: Stable manifest
+The installer SHALL record the source version, tools, components, and managed paths in `.openbackbone.yaml`, and SHALL NOT record anything that differs between two runs of the same version.
+
+#### Scenario: Rerun of the same version
+- **WHEN** the installer runs twice from the same source version with the same options
+- **THEN** `.openbackbone.yaml` is byte-for-byte unchanged by the second run
+
 ### Requirement: Agent targets
-The installer SHALL write instructions and skills for every agent target named by `--tools`, which defaults to `agents,claude`.
+The installer SHALL write instructions and skills for the agent targets named by `--tools`, which defaults to `agents,claude`, and for no other target.
 
 #### Scenario: Both default targets
 - **WHEN** the installer runs with the default tools
@@ -28,12 +35,16 @@ The installer SHALL write instructions and skills for every agent target named b
 - **WHEN** the installer runs with `--tools agents`
 - **THEN** no `CLAUDE.md` and no `.claude/` directory is created
 
+#### Scenario: Claude target only
+- **WHEN** the installer runs with `--tools claude`
+- **THEN** skills exist under `.claude/skills/` and no `.agents/` directory is created
+
 #### Scenario: CLAUDE.md already reaches the rules
-- **WHEN** `CLAUDE.md` is a symlink or already imports `AGENTS.md`
-- **THEN** the installer leaves `CLAUDE.md` unchanged
+- **WHEN** `CLAUDE.md` is the same file as `AGENTS.md`, or already imports `AGENTS.md`
+- **THEN** the installer adds no import to `CLAUDE.md`
 
 ### Requirement: Managed block
-The installer SHALL confine its instructions to one managed block per instruction file and SHALL leave everything outside that block unchanged.
+The installer SHALL confine its instructions to one managed block per instruction file, SHALL leave everything outside that block unchanged, and SHALL write the file in place so that a symlink and the file's permissions survive.
 
 #### Scenario: Existing instructions
 - **WHEN** `AGENTS.md` already has project content and no managed block
@@ -46,6 +57,14 @@ The installer SHALL confine its instructions to one managed block per instructio
 #### Scenario: Malformed markers
 - **WHEN** an instruction file has unpaired, duplicated, or reversed markers
 - **THEN** the installer exits with an error before writing any file
+
+#### Scenario: Symlinked instruction file
+- **WHEN** `AGENTS.md` is a symlink to another file
+- **THEN** the managed block is written into that file and `AGENTS.md` is still a symlink
+
+#### Scenario: File permissions
+- **WHEN** an instruction file is readable by other users before the installer runs
+- **THEN** it is still readable by other users afterwards
 
 ### Requirement: Living documents are seeded once
 The installer SHALL create `ROADMAP.md`, `GLOSSARY.md`, and `docs/architecture.md` only when they do not exist, and SHALL never create or modify `README.md` or any ADR.
@@ -66,7 +85,7 @@ The installer SHALL take its content from the directory of its own script file w
 - **THEN** it fetches the published repository and replaces the managed content
 
 ### Requirement: Repository-local hooks only
-The installer SHALL write the pre-commit shim only into a hook directory that belongs to the repository, and SHALL chain any pre-commit hook that was already there.
+The installer SHALL write the pre-commit shim only into a hook directory that belongs to the repository, SHALL keep the hook's checks in `scripts/openbackbone-pre-commit.sh`, and SHALL chain any pre-commit hook that was already there without changing whether it is executable.
 
 #### Scenario: Shared hook directory
 - **WHEN** `core.hooksPath` points outside the repository
@@ -76,9 +95,81 @@ The installer SHALL write the pre-commit shim only into a hook directory that be
 - **WHEN** the repository already has a pre-commit hook
 - **THEN** that hook still runs, once, before the discipline checks
 
-### Requirement: Skipped components are reported
-The installer SHALL skip a component whose prerequisite is missing, continue with the rest, and print how to install the skipped component.
+#### Scenario: Disabled user hook
+- **WHEN** the repository has a pre-commit hook that is not executable
+- **THEN** the hook is kept, is still not executable, and does not run
 
-#### Scenario: OpenSpec CLI missing
-- **WHEN** the `openspec` command is not available
-- **THEN** the `openspec` component is skipped with the install command, and the other components are installed
+#### Scenario: Project has its own scripts/pre-commit.sh
+- **WHEN** the project already has a file named `scripts/pre-commit.sh`
+- **THEN** the installer leaves it unchanged
+
+### Requirement: OpenSpec CLI is required
+When the `openspec` component is selected, the installer SHALL require the OpenSpec CLI before it writes any file. When the CLI is missing, the installer SHALL offer to install it, and SHALL exit with an error, having changed nothing, unless the CLI is installed.
+
+#### Scenario: User accepts
+- **WHEN** the CLI is missing and the user confirms the offer
+- **THEN** the installer installs the CLI with npm and continues
+
+#### Scenario: User declines
+- **WHEN** the CLI is missing and the user declines the offer
+- **THEN** the installer exits with an error, prints the install command, and has changed no file
+
+#### Scenario: No terminal to ask on
+- **WHEN** the CLI is missing, no terminal is available, and `--yes` was not given
+- **THEN** the installer exits with an error, prints the install command, and has changed no file
+
+#### Scenario: Accepted in advance
+- **WHEN** the CLI is missing and the installer runs with `--yes`
+- **THEN** the installer installs the CLI with npm without asking and continues
+
+#### Scenario: npm missing
+- **WHEN** the CLI and npm are both missing
+- **THEN** the installer exits with an error and has changed no file
+
+#### Scenario: Component not selected
+- **WHEN** `--with` does not include `openspec`
+- **THEN** the installer does not require the CLI
+
+### Requirement: OpenSpec initialization must succeed
+The installer SHALL exit with an error when `openspec init` fails, and a later run SHALL complete the installation.
+
+#### Scenario: Initialization fails
+- **WHEN** `openspec init` exits with an error
+- **THEN** the installer exits with an error and writes no manifest
+
+#### Scenario: Rerun after a failure
+- **WHEN** the installer runs again and `openspec init` succeeds
+- **THEN** the schemas are installed and the manifest lists the `openspec` component
+
+### Requirement: Hooks are skipped with a remedy
+The installer SHALL skip the `hooks` component when the repository cannot take a hook, continue with the other components, and print how to make the hook installable.
+
+#### Scenario: Not a Git repository
+- **WHEN** the installer runs in a directory that is not a Git repository
+- **THEN** the `hooks` component is skipped with a remedy, and the other components are installed
+
+### Requirement: Same-named files are kept
+The installer SHALL replace a managed skill, schema, or ADR rules file only when it is missing or carries the ownership marker, and SHALL report every file it kept.
+
+#### Scenario: Project already has a skill of the same name
+- **WHEN** the project has its own `.claude/skills/domain-modeling/` without the ownership marker
+- **THEN** the installer leaves it unchanged, reports it as kept, and does not list it in `.openbackbone.yaml`
+
+#### Scenario: Managed file on rerun
+- **WHEN** the installer runs again and an installed skill still carries the ownership marker
+- **THEN** the skill is replaced with the current version
+
+#### Scenario: Project takes over a managed file
+- **WHEN** the project removes the ownership marker from an installed schema, edits the schema, and runs the installer again
+- **THEN** the edits are preserved and the schema is reported as kept
+
+### Requirement: Default schema is set once
+The installer SHALL make `spec-driven-with-impact` the default schema when `openspec/config.yaml` names no schema or names OpenSpec's stock `spec-driven`, and SHALL leave any other value unchanged.
+
+#### Scenario: Fresh OpenSpec configuration
+- **WHEN** `openspec init` has just created the configuration
+- **THEN** the default schema is `spec-driven-with-impact`
+
+#### Scenario: Project chose another default
+- **WHEN** the configuration names `minimalist` and the installer runs again
+- **THEN** the default schema is still `minimalist`

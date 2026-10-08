@@ -13,5 +13,6 @@ What we intend to build, most certain first. An item is removed when the change 
 
 ## Later
 
+- When `core.hooksPath` is a tracked directory inside the repository (husky and similar), chain the existing pre-commit hook without renaming it.
 - Check spec text against `_Avoid_` words in `GLOSSARY.md`.
 - An opt-in way to install the hook into a shared `core.hooksPath` directory.

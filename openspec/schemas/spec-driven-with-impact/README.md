@@ -22,8 +22,8 @@ one step that keeps the project's other living documents in step with the change
   written in this step; the rest become tasks.
 - `tasks` ends with a "Living documents" group holding one task per `Planned:` entry.
 
-The pre-commit hook rejects an `impact.md` with an empty section, and an archived
-change whose tasks, including "Living documents", are not all checked.
+The pre-commit hook rejects an `impact.md` with an empty section, and a commit
+that archives a change whose tasks, including "Living documents", are not all checked.
 
 ## Decisions are not specs
 
@@ -38,4 +38,4 @@ choice and the reason in a paragraph. Everything else about the change stays in
 Declared in `skills.txt` and installed by `init.sh`:
 
 - `domain-modeling`: settles terms into `GLOSSARY.md` and decides whether a decision earns an ADR.
-- `openspec-git-discipline`: git checkpoints for propose, apply, and archive.
+- `openspec-git-discipline`: one change, one branch, one pull request; when to split, and what goes wrong.

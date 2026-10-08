@@ -12,7 +12,7 @@
     "skills/",
     "templates/",
     "openspec/schemas/",
-    "scripts/pre-commit.sh",
+    "scripts/openbackbone-pre-commit.sh",
     "docs/adr/README.md",
     "README.zh-CN.md"
   ],

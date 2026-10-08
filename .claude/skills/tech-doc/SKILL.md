@@ -7,6 +7,8 @@ description: |
   top-down, enforces active voice, grounds claims in runnable examples.
   Apply when writing or editing docs, reviewing a docs PR, or auditing for
   clarity.
+metadata:
+  managed-by: openbackbone  # replaced on upgrade; delete this line to keep your edits
 ---
 
 # tech-doc
@@ -94,7 +96,7 @@ Default audience: the second-most-experienced reader you expect — not the expe
 Error: ECONNREFUSED 127.0.0.1:5432
 ```
 
-Fix: Postgres isn't running. Start it with `brew services start postgresql`.
+Fix: Postgres isn't running. Start it, for example with `brew services start postgresql`.
 
 ## 9. Maintain
 
@@ -107,9 +109,9 @@ Fix: Postgres isn't running. Start it with `brew services start postgresql`.
 ## 10. AI and LLM-friendly docs
 
 Modern docs are read by both humans and LLMs. To serve both:
-- Generate `llms.txt` / `llms-full.txt` (concise, structured page index for AI consumers — Tangly emits these by default).
+- Publish `llms.txt` / `llms-full.txt` when the docs site supports it (a concise, structured page index for AI consumers).
 - Use semantic HTML / clean Markdown — heading hierarchy carries meaning.
-- Add `aiContext:` frontmatter or short summaries where the page topic isn't obvious from the slug.
+- Open a page with a short summary when its topic isn't obvious from the title.
 - Avoid relying on visual layout alone (pure CSS columns, image-only diagrams). Provide a text equivalent.
 
 ## Editing checklist (pre-publish)
