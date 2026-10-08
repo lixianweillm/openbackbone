@@ -1,0 +1,340 @@
+name: spec-driven-with-impact
+version: 1
+description: Default workflow - proposal → specs → design → impact → tasks (impact keeps ADRs, glossary, architecture, roadmap, and README in step with the change)
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Why the change is worth making and what it covers
+    template: proposal.md
+    instruction: >
+      Write proposal.md: the case for the change. It answers "why" and "what",
+      never "how". Aim for a page; two at most.
+
+
+      Read ROADMAP.md and GLOSSARY.md at the repository root first (skip one
+      that does not exist), and list the folders under openspec/specs/ so you
+      know which capabilities already exist. Use glossary terms exactly as
+      defined. If the proposal needs a domain term the glossary lacks, or uses
+      one differently, settle it with the user through the domain-modeling
+      skill and write it to GLOSSARY.md before continuing.
+
+
+      Fill every section of the template:
+
+      - **Why**: the problem or opportunity in a sentence or two, and why it
+      matters now.
+
+      - **Roadmap**: quote the ROADMAP.md item this change delivers, or write
+      `Unplanned: <reason>`.
+
+      - **What Changes**: one bullet per concrete change - added, altered, or
+      removed. Prefix anything that breaks existing users with **BREAKING**.
+
+      - **Capabilities**: the contract with the specs step. Every name listed
+      here gets exactly one spec file there, so check before you write.
+        - **New Capabilities**: kebab-case name and one line of scope for each capability that does not exist yet.
+        - **Modified Capabilities**: the existing folder name from openspec/specs/ for each capability whose required behavior changes. A change of implementation only does not belong here. Leave empty when no requirement changes.
+      - **Impact**: the code, interfaces, dependencies, and systems the change
+      touches.
+
+
+      Technical approach belongs in design.md. Durable decisions are recorded
+      later, in the impact step.
+    requires: []
+  - id: specs
+    generates: specs/**/*.md
+    description: The required behavior this change adds, alters, or removes
+    template: spec.md
+    instruction: >
+      Write the delta specs: what the system must do once this change lands.
+      One file per capability named in the proposal, at
+      specs/<capability>/spec.md. For a new capability use the proposal's
+      name unchanged; for a modified one use the existing folder name under
+      openspec/specs/.
+
+
+      Language: requirement and scenario text MUST use GLOSSARY.md terms
+      exactly as defined and MUST NOT use a word listed under `_Avoid_`. A
+      requirement that needs an undefined domain term is a signal to settle
+      that term first (domain-modeling skill), not to invent one inline.
+
+
+      A delta spec is built from up to four second-level sections. Use only
+      the ones you need:
+
+      - `## ADDED Requirements` - behavior that did not exist.
+
+      - `## MODIFIED Requirements` - behavior that changes. Give the whole
+      requirement as it will read afterwards.
+
+      - `## REMOVED Requirements` - behavior that goes away. State a
+      **Reason** and a **Migration** for each.
+
+      - `## RENAMED Requirements` - a new name for unchanged behavior, written
+      as FROM: and TO: lines.
+
+
+      Inside a section:
+
+      - A requirement is a third-level heading, `### Requirement: <name>`,
+      followed by a normative statement using SHALL or MUST.
+
+      - A scenario is a FOURTH-level heading, `#### Scenario: <name>`,
+      followed by **WHEN** and **THEN** bullets. OpenSpec only recognizes
+      scenarios at exactly four `#`; at any other level, or as plain bullets,
+      they are dropped without an error.
+
+      - Every requirement has one scenario or more.
+
+
+      Modifying a requirement safely: open
+      openspec/specs/<capability>/spec.md, copy the requirement from its
+      heading to the end of its last scenario, paste it under
+      `## MODIFIED Requirements`, then edit. Keep the heading text identical
+      to the original so the two can be matched. Archiving replaces the old
+      block with yours, so anything you leave out is deleted. When you are
+      only adding behavior beside what exists, use ADDED and leave the
+      original alone.
+
+
+      Shape of a delta spec:
+
+      ```
+
+      ## ADDED Requirements
+
+
+      ### Requirement: Invoice export
+
+      The system SHALL let a Customer download their Invoices as one CSV file.
+
+
+      #### Scenario: Customer with invoices
+
+      - **WHEN** a Customer with three Invoices requests an export
+
+      - **THEN** the system returns a CSV file with three rows
+
+      ```
+
+
+      Write scenarios you could turn into tests.
+    requires:
+      - proposal
+  - id: design
+    generates: design.md
+    description: How the change will be built and why that way
+    template: design.md
+    instruction: >
+      Write design.md: the technical approach, at the level of structure and
+      choices rather than code.
+
+
+      A design is worth writing when the change crosses module or service
+      boundaries, introduces a pattern or an external dependency, reshapes
+      data, carries security, performance, or migration risk, or leaves a
+      technical question that should be answered before coding. A change
+      with none of these can keep this file to a few lines saying so.
+
+
+      Read first:
+
+      - docs/architecture.md - the current shape of the system this design
+      changes.
+
+      - Every file in docs/adr/. An ADR is in force unless a later ADR's
+      `Supersedes:` field names it. Only in-force ADRs constrain this design;
+      superseded ones are history. If this design needs to overturn an
+      in-force ADR, do not edit it - say so under Open Questions and let the
+      impact step record a superseding ADR.
+
+
+      Sections:
+
+      - **Context**: where things stand today and what constrains the work.
+
+      - **Goals / Non-Goals**: what the design delivers, and what it
+      deliberately leaves out.
+
+      - **Decisions**: each significant choice, the alternatives weighed, and
+      the reason this one won.
+
+      - **Risks / Trade-offs**: what could go wrong or is being given up,
+      each paired with how it is contained.
+
+      - **Migration Plan**: rollout and rollback steps, when the change needs
+      them.
+
+      - **Open Questions**: what is still undecided.
+
+
+      design.md is where the full reasoning for THIS change lives, and it is
+      archived with the change. Most decisions here are tactical and stay
+      here. Only the few that pass the ADR bar are distilled into docs/adr/
+      by the impact step.
+    requires:
+      - proposal
+  - id: impact
+    generates: impact.md
+    description: Review of what this change does to the project's other living documents
+    template: impact.md
+    instruction: >
+      Write openspec/changes/<change>/impact.md. Specs are not the only
+      document a change touches: this step makes the effect on every other
+      living document explicit, so none of them silently goes stale.
+
+
+      impact.md has exactly five sections. Every section MUST contain at least
+      one entry, and every entry starts with one of three markers:
+
+      - `Updated: <path> - <what>` - the document was changed in this step.
+
+      - `Planned: <what>` - the document must change when the implementation
+      lands. The tasks step turns each of these into a task.
+
+      - `Not affected: <reason>` - a real reason, not "n/a".
+
+
+      Decisions and Glossary are settled at design time, so they are written
+      NOW (`Updated` or `Not affected`, never `Planned`). Architecture and
+      README describe shipped behavior, so they are normally `Planned`.
+      Roadmap is `Planned` when the proposal names a roadmap item.
+
+
+      ## Decisions (docs/adr/)
+
+
+      Re-read design.md's Decisions. Create an ADR only for a decision that
+      passes ALL THREE tests:
+
+      1. Hard to reverse - changing your mind later costs real work.
+
+      2. Surprising without context - a future reader of the code would ask
+      "why on earth is it done this way?".
+
+      3. A real trade-off - a genuine alternative existed and lost for
+      specific reasons.
+
+      Miss one test and there is no ADR; the decision stays in design.md.
+      Most changes produce zero ADRs. Do not invent one to look thorough.
+
+
+      An ADR records a DECISION, not a design. Follow docs/adr/README.md:
+      the title states the choice ("Use X for Y"), the body is one short
+      paragraph - what forced the choice, what was chosen, why the
+      alternative lost. It never contains requirements, scenarios, interface
+      listings, file layouts, or task lists; those belong in specs and
+      design.md. If an ADR is growing past half a page, it is turning into
+      a spec - cut it back to the choice and the reason.
+
+
+      Accepted ADRs are immutable: never edit, rename, or delete an existing
+      docs/adr/NNNN-*.md. To overturn one, write a new ADR whose
+      `Supersedes:` field names it. Number new ADRs one above the highest
+      existing number.
+
+
+      List the in-force ADRs you checked this design against, then each new
+      ADR as `Updated: docs/adr/NNNN-slug.md - <the decision in one line>`.
+
+
+      ## Glossary (GLOSSARY.md)
+
+
+      Did this change introduce, rename, or sharpen a domain term? If so it
+      must already be in GLOSSARY.md (domain-modeling skill) and listed
+      here. Check that the delta specs use glossary terms only.
+
+
+      ## Architecture (docs/architecture.md)
+
+
+      `Planned` when the change adds, removes, or re-wires a component,
+      boundary, data flow, or external dependency. docs/architecture.md is a
+      snapshot of the system as it is NOW: it is rewritten in place and
+      carries no history or rationale (those are the ADRs).
+
+
+      ## Roadmap (ROADMAP.md)
+
+
+      `Planned: remove "<item>"` when the proposal delivers a roadmap item.
+      Also record follow-up work this change reveals as a new roadmap item.
+
+
+      ## README (README.md)
+
+
+      `Planned` when anything a newcomer would do or see changes: install or
+      setup steps, commands, configuration, user-visible behavior.
+    requires:
+      - design
+  - id: tasks
+    generates: tasks.md
+    description: The ordered checklist that implements the change
+    template: tasks.md
+    instruction: >
+      Write tasks.md: the work, as a checklist someone can follow top to
+      bottom.
+
+
+      The format is fixed, because progress is read from it:
+
+      - Groups are second-level headings numbered from 1: `## 1. <group>`.
+
+      - A task is one line: `- [ ] <group>.<n> <what to do>`. Anything that
+      is not a `- [ ]` checkbox is invisible to progress tracking.
+
+
+      Writing good tasks:
+
+      - Put a task after everything it depends on.
+
+      - Size each one to fit a single working session.
+
+      - Phrase it so that "done" is not a matter of opinion.
+
+      - The LAST group is always "Living documents". It contains one task for
+      every `Planned:` entry in impact.md, naming the file to update. A
+      `Planned:` entry with no task is a defect in this artifact.
+
+
+      Shape of a task list:
+
+      ```
+
+      ## 1. Export
+
+
+      - [ ] 1.1 Add the invoice export query
+
+      - [ ] 1.2 Serialize export rows as CSV, with a test per scenario
+
+
+      ## 2. Living documents
+
+
+      - [ ] 2.1 docs/architecture.md: add the export worker to the component diagram
+
+      - [ ] 2.2 README.md: document the `export` command
+
+      - [ ] 2.3 ROADMAP.md: remove "CSV export"
+
+      ```
+
+
+      Build what the specs require, the way design.md describes, within the
+      in-force ADRs in docs/adr/.
+    requires:
+      - specs
+      - impact
+apply:
+  requires:
+    - tasks
+  tracks: tasks.md
+  instruction: |
+    Read the change's artifacts, then take the unchecked tasks in order and
+    check each one off as soon as it is finished. The "Living documents" group
+    is part of the change, not optional cleanup: the change is not done, and
+    must not be archived, while any of it is open. Stop and ask when a task is
+    blocked or unclear.
