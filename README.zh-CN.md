@@ -38,7 +38,7 @@ cd /path/to/your-project
 | `--tools` | `agents,claude` | agent 目标:`agents` 写入 `AGENTS.md` 和 `.agents/skills/`;`claude` 额外写入 `CLAUDE.md` 和 `.claude/skills/`。其他 OpenSpec 工具 id 会传给 `openspec init` |
 | `--language` | `English` | 新建 OpenSpec 产物的语言(仅对新项目生效) |
 
-重复运行即升级。安装器只重写它托管的内容:`AGENTS.md` 和 `CLAUDE.md` 中的标记区块、schema、skill、`docs/adr/README.md` 和 `scripts/pre-commit.sh`。你的路线图、术语表、架构概览、ADR 和 README 不会被覆盖。`.openbackbone.yaml` 记录本次安装的内容。
+重复运行即升级。安装器只重写它托管的内容:`AGENTS.md` 和 `CLAUDE.md` 中的标记区块、schema、skill、`docs/adr/README.md` 和 `scripts/pre-commit.sh`。你的路线图、术语表、架构概览、ADR 和 README 不会被覆盖。`.openbackbone.yaml` 记录安装的内容和来源版本;只有升级带来变化时它才会变,可以提交进版本库。
 
 缺少 OpenSpec CLI,或 `core.hooksPath` 指向仓库之外时,对应组件会被跳过,安装器会给出修复方法。如果 `CLAUDE.md` 是符号链接或已经引入了 `AGENTS.md`,安装器不会改动它。
 

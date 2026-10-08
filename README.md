@@ -38,7 +38,7 @@ cd /path/to/your-project
 | `--tools` | `agents,claude` | Agent targets: `agents` writes `AGENTS.md` and `.agents/skills/`; `claude` adds `CLAUDE.md` and `.claude/skills/`. Other OpenSpec tool ids are passed to `openspec init` |
 | `--language` | `English` | Language for new OpenSpec artifacts (new projects only) |
 
-Rerun the installer to upgrade. It rewrites only what it manages: the marked block in `AGENTS.md` and `CLAUDE.md`, the schemas, the skills, `docs/adr/README.md`, and `scripts/pre-commit.sh`. Your roadmap, glossary, architecture overview, ADRs, and README are never overwritten. `.openbackbone.yaml` records what was installed.
+Rerun the installer to upgrade. It rewrites only what it manages: the marked block in `AGENTS.md` and `CLAUDE.md`, the schemas, the skills, `docs/adr/README.md`, and `scripts/pre-commit.sh`. Your roadmap, glossary, architecture overview, ADRs, and README are never overwritten. `.openbackbone.yaml` records what was installed and from which version; it changes only when an upgrade changes something, so commit it.
 
 If the OpenSpec CLI is missing, or `core.hooksPath` points outside the repository, that component is skipped and the installer prints how to fix it. A `CLAUDE.md` that is a symlink or already imports `AGENTS.md` is left as it is.
 

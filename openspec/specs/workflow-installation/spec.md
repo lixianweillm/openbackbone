@@ -17,6 +17,13 @@ The installer SHALL install the components `openspec`, `docs`, `skills`, and `ho
 - **WHEN** `--with` names a component that does not exist
 - **THEN** the installer exits with an error and changes no file
 
+### Requirement: Stable manifest
+The installer SHALL record the source version, tools, components, and managed paths in `.openbackbone.yaml`, and SHALL NOT record anything that differs between two runs of the same version.
+
+#### Scenario: Rerun of the same version
+- **WHEN** the installer runs twice from the same source version with the same options
+- **THEN** `.openbackbone.yaml` is byte-for-byte unchanged by the second run
+
 ### Requirement: Agent targets
 The installer SHALL write instructions and skills for every agent target named by `--tools`, which defaults to `agents,claude`.
 

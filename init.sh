@@ -360,6 +360,9 @@ HOOK
   log "Component hooks: pre-commit hook ready (spec validation, ADR immutability, impact review)"
 }
 
+# The manifest holds nothing that varies between runs or machines (no
+# timestamp, no hook path), so a rerun of the same version leaves it unchanged
+# and it can be committed.
 write_manifest() {
   local c s d
   {
@@ -367,7 +370,6 @@ write_manifest() {
     echo "template: $NAME"
     echo "source: $DEFAULT_REPO"
     echo "version: $SRC_VERSION"
-    echo "installed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "tools: $TOOLS"
     echo "components:"
     for c in $INSTALLED; do echo "  - $c"; done
@@ -378,7 +380,7 @@ write_manifest() {
         openspec) echo "  - openspec/schemas/" ;;
         docs)     echo "  - docs/adr/README.md" ;;
         skills)   for d in $SKILL_DIRS; do for s in $SKILL_NAMES; do echo "  - $d/$s/"; done; done ;;
-        hooks)    echo "  - scripts/pre-commit.sh"; echo "  - $(git -C "$TARGET" rev-parse --git-path hooks)/pre-commit" ;;
+        hooks)    echo "  - scripts/pre-commit.sh" ;;
       esac
     done
   } > "$TARGET/$MANIFEST"
