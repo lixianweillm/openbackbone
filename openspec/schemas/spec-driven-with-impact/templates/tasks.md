@@ -1,7 +1,6 @@
-## 1. <!-- Task Group Name -->
+## 1. <!-- Group name -->
 
-- [ ] 1.1 <!-- Task description -->
-- [ ] 1.2 <!-- Task description -->
+- [ ] 1.1 <!-- What to do -->
 
 ## 2. Living documents
 

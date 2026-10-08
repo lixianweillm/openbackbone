@@ -90,4 +90,4 @@ docs/                   openbackbone 自身的架构概览和 ADR
 
 ## 致谢与许可证
 
-[MIT](./LICENSE)。基于 [OpenSpec](https://github.com/Fission-AI/OpenSpec) 构建。`domain-modeling` skill 借鉴了 [Matt Pocock 的同名 skill](https://www.aihero.dev/skills-domain-modeling)。随仓库分发的 schema 保留各自的许可证文件。
+[MIT](./LICENSE)。基于 [OpenSpec](https://github.com/Fission-AI/OpenSpec) 构建。`domain-modeling` skill 借鉴了 [Matt Pocock 的同名 skill](https://www.aihero.dev/skills-domain-modeling)。

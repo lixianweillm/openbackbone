@@ -4,156 +4,137 @@ description: Default workflow - proposal → specs → design → impact → tas
 artifacts:
   - id: proposal
     generates: proposal.md
-    description: Initial proposal document outlining the change
+    description: Why the change is worth making and what it covers
     template: proposal.md
     instruction: >
-      Create the proposal document that establishes WHY this change is needed.
+      Write proposal.md: the case for the change. It answers "why" and "what",
+      never "how". Aim for a page; two at most.
 
 
-      Before writing, read ROADMAP.md and GLOSSARY.md at the repository root
-      (skip either if it does not exist). Use glossary terms exactly as
+      Read ROADMAP.md and GLOSSARY.md at the repository root first (skip one
+      that does not exist), and list the folders under openspec/specs/ so you
+      know which capabilities already exist. Use glossary terms exactly as
       defined. If the proposal needs a domain term the glossary lacks, or uses
       one differently, settle it with the user through the domain-modeling
       skill and write it to GLOSSARY.md before continuing.
 
 
-      Sections:
+      Fill every section of the template:
 
-      - **Why**: 1-2 sentences on the problem or opportunity. What problem does
-      this solve? Why now?
+      - **Why**: the problem or opportunity in a sentence or two, and why it
+      matters now.
 
-      - **Roadmap**: The ROADMAP.md item this change delivers, quoted, or
-      `Unplanned: <reason>` when the work was not on the roadmap.
+      - **Roadmap**: quote the ROADMAP.md item this change delivers, or write
+      `Unplanned: <reason>`.
 
-      - **What Changes**: Bullet list of changes. Be specific about new
-      capabilities, modifications, or removals. Mark breaking changes with
-      **BREAKING**.
+      - **What Changes**: one bullet per concrete change - added, altered, or
+      removed. Prefix anything that breaks existing users with **BREAKING**.
 
-      - **Capabilities**: Identify which specs will be created or modified:
-        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
-        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
-      - **Impact**: Affected code, APIs, dependencies, or systems.
-
-
-      IMPORTANT: The Capabilities section is critical. It creates the contract
-      between proposal and specs phases. Research existing specs before filling
-      this in. Each capability listed here will need a corresponding spec file.
+      - **Capabilities**: the contract with the specs step. Every name listed
+      here gets exactly one spec file there, so check before you write.
+        - **New Capabilities**: kebab-case name and one line of scope for each capability that does not exist yet.
+        - **Modified Capabilities**: the existing folder name from openspec/specs/ for each capability whose required behavior changes. A change of implementation only does not belong here. Leave empty when no requirement changes.
+      - **Impact**: the code, interfaces, dependencies, and systems the change
+      touches.
 
 
-      Keep it concise (1-2 pages). Focus on the "why" not the "how" -
-      implementation details belong in design.md.
+      Technical approach belongs in design.md. Durable decisions are recorded
+      later, in the impact step.
     requires: []
   - id: specs
     generates: specs/**/*.md
-    description: Detailed specifications for the change
+    description: The required behavior this change adds, alters, or removes
     template: spec.md
     instruction: >
-      Create specification files that define WHAT the system should do.
-
-
-      Create one spec file per capability listed in the proposal's Capabilities
-      section.
-
-      - New capabilities: use the exact kebab-case name from the proposal
-      (specs/<capability>/spec.md).
-
-      - Modified capabilities: use the existing spec folder name from
-      openspec/specs/<capability>/ when creating the delta spec at
-      specs/<capability>/spec.md.
+      Write the delta specs: what the system must do once this change lands.
+      One file per capability named in the proposal, at
+      specs/<capability>/spec.md. For a new capability use the proposal's
+      name unchanged; for a modified one use the existing folder name under
+      openspec/specs/.
 
 
       Language: requirement and scenario text MUST use GLOSSARY.md terms
-      exactly as defined and MUST NOT use a term listed under `_Avoid_`. A
+      exactly as defined and MUST NOT use a word listed under `_Avoid_`. A
       requirement that needs an undefined domain term is a signal to settle
       that term first (domain-modeling skill), not to invent one inline.
 
 
-      Delta operations (use ## headers):
+      A delta spec is built from up to four second-level sections. Use only
+      the ones you need:
 
-      - **ADDED Requirements**: New capabilities
+      - `## ADDED Requirements` - behavior that did not exist.
 
-      - **MODIFIED Requirements**: Changed behavior - MUST include full updated
-      content
+      - `## MODIFIED Requirements` - behavior that changes. Give the whole
+      requirement as it will read afterwards.
 
-      - **REMOVED Requirements**: Deprecated features - MUST include **Reason**
-      and **Migration**
+      - `## REMOVED Requirements` - behavior that goes away. State a
+      **Reason** and a **Migration** for each.
 
-      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
-
-
-      Format requirements:
-
-      - Each requirement: `### Requirement: <name>` followed by description
-
-      - Use SHALL/MUST for normative requirements (avoid should/may)
-
-      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
-
-      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3
-      hashtags or bullets will fail silently.
-
-      - Every requirement MUST have at least one scenario.
+      - `## RENAMED Requirements` - a new name for unchanged behavior, written
+      as FROM: and TO: lines.
 
 
-      MODIFIED requirements workflow:
+      Inside a section:
 
-      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      - A requirement is a third-level heading, `### Requirement: <name>`,
+      followed by a normative statement using SHALL or MUST.
 
-      2. Copy the ENTIRE requirement block (from `### Requirement:` through all
-      scenarios)
+      - A scenario is a FOURTH-level heading, `#### Scenario: <name>`,
+      followed by **WHEN** and **THEN** bullets. OpenSpec only recognizes
+      scenarios at exactly four `#`; at any other level, or as plain bullets,
+      they are dropped without an error.
 
-      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
-
-      4. Ensure header text matches exactly (whitespace-insensitive)
-
-
-      Common pitfall: Using MODIFIED with partial content loses detail at
-      archive time. If adding new concerns without changing existing behavior,
-      use ADDED instead.
+      - Every requirement has one scenario or more.
 
 
-      Example:
+      Modifying a requirement safely: open
+      openspec/specs/<capability>/spec.md, copy the requirement from its
+      heading to the end of its last scenario, paste it under
+      `## MODIFIED Requirements`, then edit. Keep the heading text identical
+      to the original so the two can be matched. Archiving replaces the old
+      block with yours, so anything you leave out is deleted. When you are
+      only adding behavior beside what exists, use ADDED and leave the
+      original alone.
+
+
+      Shape of a delta spec:
 
       ```
 
       ## ADDED Requirements
 
 
-      ### Requirement: User can export data
+      ### Requirement: Invoice export
 
-      The system SHALL allow users to export their data in CSV format.
+      The system SHALL let a Customer download their Invoices as one CSV file.
 
 
-      #### Scenario: Successful export
+      #### Scenario: Customer with invoices
 
-      - **WHEN** user clicks "Export" button
+      - **WHEN** a Customer with three Invoices requests an export
 
-      - **THEN** system downloads a CSV file with all user data
+      - **THEN** the system returns a CSV file with three rows
 
       ```
 
 
-      Specs should be testable - each scenario is a potential test case.
+      Write scenarios you could turn into tests.
     requires:
       - proposal
   - id: design
     generates: design.md
-    description: Technical design document with implementation details
+    description: How the change will be built and why that way
     template: design.md
     instruction: >
-      Create the design document that explains HOW to implement the change.
+      Write design.md: the technical approach, at the level of structure and
+      choices rather than code.
 
 
-      When to include design.md (create only if any apply):
-
-      - Cross-cutting change (multiple services/modules) or new architectural
-      pattern
-
-      - New external dependency or significant data model changes
-
-      - Security, performance, or migration complexity
-
-      - Ambiguity that benefits from technical decisions before coding
+      A design is worth writing when the change crosses module or service
+      boundaries, introduces a pattern or an external dependency, reshapes
+      data, carries security, performance, or migration risk, or leaves a
+      technical question that should be answered before coding. A change
+      with none of these can keep this file to a few lines saying so.
 
 
       Read first:
@@ -170,28 +151,27 @@ artifacts:
 
       Sections:
 
-      - **Context**: Background, current state, constraints, stakeholders
+      - **Context**: where things stand today and what constrains the work.
 
-      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Goals / Non-Goals**: what the design delivers, and what it
+      deliberately leaves out.
 
-      - **Decisions**: Key technical choices with rationale (why X over Y?).
-      Include alternatives considered for each decision.
+      - **Decisions**: each significant choice, the alternatives weighed, and
+      the reason this one won.
 
-      - **Risks / Trade-offs**: Known limitations, things that could go wrong.
-      Format: [Risk] → Mitigation
+      - **Risks / Trade-offs**: what could go wrong or is being given up,
+      each paired with how it is contained.
 
-      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+      - **Migration Plan**: rollout and rollback steps, when the change needs
+      them.
 
-      - **Open Questions**: Outstanding decisions or unknowns to resolve.
+      - **Open Questions**: what is still undecided.
 
 
       design.md is where the full reasoning for THIS change lives, and it is
       archived with the change. Most decisions here are tactical and stay
       here. Only the few that pass the ADR bar are distilled into docs/adr/
       by the impact step.
-
-
-      Focus on architecture and approach, not line-by-line implementation.
     requires:
       - proposal
   - id: impact
@@ -291,42 +271,44 @@ artifacts:
       - design
   - id: tasks
     generates: tasks.md
-    description: Implementation checklist with trackable tasks
+    description: The ordered checklist that implements the change
     template: tasks.md
     instruction: >
-      Create the task list that breaks down the implementation work.
+      Write tasks.md: the work, as a checklist someone can follow top to
+      bottom.
 
 
-      **IMPORTANT: Follow the template below exactly.** The apply phase parses
-      checkbox format to track progress. Tasks not using `- [ ]` won't be
-      tracked.
+      The format is fixed, because progress is read from it:
+
+      - Groups are second-level headings numbered from 1: `## 1. <group>`.
+
+      - A task is one line: `- [ ] <group>.<n> <what to do>`. Anything that
+      is not a `- [ ]` checkbox is invisible to progress tracking.
 
 
-      Guidelines:
+      Writing good tasks:
 
-      - Group related tasks under ## numbered headings
+      - Put a task after everything it depends on.
 
-      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Size each one to fit a single working session.
 
-      - Tasks should be small enough to complete in one session
-
-      - Order tasks by dependency (what must be done first?)
+      - Phrase it so that "done" is not a matter of opinion.
 
       - The LAST group is always "Living documents". It contains one task for
       every `Planned:` entry in impact.md, naming the file to update. A
       `Planned:` entry with no task is a defect in this artifact.
 
 
-      Example:
+      Shape of a task list:
 
       ```
 
-      ## 1. Core Implementation
+      ## 1. Export
 
 
-      - [ ] 1.1 Implement data export function
+      - [ ] 1.1 Add the invoice export query
 
-      - [ ] 1.2 Add CSV formatting utilities
+      - [ ] 1.2 Serialize export rows as CSV, with a test per scenario
 
 
       ## 2. Living documents
@@ -341,10 +323,8 @@ artifacts:
       ```
 
 
-      Reference specs for what to build, design for how to build it, and the
-      in-force ADRs in docs/adr/ for the commitments to honor.
-
-      Each task should be verifiable - you know when it's done.
+      Build what the specs require, the way design.md describes, within the
+      in-force ADRs in docs/adr/.
     requires:
       - specs
       - impact
@@ -353,7 +333,8 @@ apply:
     - tasks
   tracks: tasks.md
   instruction: |
-    Read context files, work through pending tasks, mark complete as you go.
-    The "Living documents" group is part of the change, not optional cleanup:
-    the change is not done, and must not be archived, while any of it is open.
-    Pause if you hit blockers or need clarification.
+    Read the change's artifacts, then take the unchecked tasks in order and
+    check each one off as soon as it is finished. The "Living documents" group
+    is part of the change, not optional cleanup: the change is not done, and
+    must not be archived, while any of it is open. Stop and ask when a task is
+    blocked or unclear.

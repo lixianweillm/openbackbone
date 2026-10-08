@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: <!-- requirement name -->
-<!-- requirement text -->
+### Requirement: <!-- name -->
+<!-- One normative statement using SHALL or MUST, in glossary terms. -->
 
-#### Scenario: <!-- scenario name -->
-- **WHEN** <!-- condition -->
-- **THEN** <!-- expected outcome -->
+#### Scenario: <!-- name -->
+- **WHEN** <!-- what happens -->
+- **THEN** <!-- what the system does -->

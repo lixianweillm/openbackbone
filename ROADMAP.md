@@ -4,7 +4,6 @@ What we intend to build, most certain first. An item is removed when the change 
 
 ## Now
 
-- Baseline specs for this repository's own capabilities (installer, schema, hook), so openbackbone is maintained with openbackbone.
 - Publish under the final repository name and verify the `curl | bash` path against it.
 
 ## Next

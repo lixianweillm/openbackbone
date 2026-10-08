@@ -1,20 +1,25 @@
 ## Context
 
-<!-- Background and current state -->
+<!-- Where things stand today and what constrains the work. -->
 
 ## Goals / Non-Goals
 
 **Goals:**
-<!-- What this design aims to achieve -->
+<!-- What this design delivers. -->
 
 **Non-Goals:**
-<!-- What is explicitly out of scope -->
+<!-- What it deliberately leaves out. -->
 
 ## Decisions
 
-<!-- Key design decisions and rationale. Most stay here; the impact step
-     promotes only the few that pass the ADR bar to docs/adr/. -->
+<!-- Each significant choice, the alternatives weighed, and why this one won.
+     Most stay here; the impact step promotes only the few that pass the ADR
+     bar to docs/adr/. -->
 
 ## Risks / Trade-offs
 
-<!-- Known risks and trade-offs -->
+<!-- What could go wrong or is given up, and how each is contained. -->
+
+## Open Questions
+
+<!-- What is still undecided, including any in-force ADR this design would overturn. -->

@@ -89,7 +89,7 @@ resolve_source() {
     esac
   done
   if [ -f "$script_path" ]; then
-    script_dir="$(cd "$(dirname "$script_path")" 2>/dev/null && pwd || true)"
+    script_dir="$(cd "$(dirname "$script_path")" 2>/dev/null && pwd)" || script_dir=""
   fi
   # templates/ exists only in the template repository, not in an installed project
   if [ -n "$script_dir" ] && [ -f "$script_dir/templates/ROADMAP.md" ] \

@@ -90,4 +90,4 @@ See [docs/architecture.md](./docs/architecture.md) and [CONTRIBUTING.md](./CONTR
 
 ## Credits and license
 
-[MIT](./LICENSE). Built on [OpenSpec](https://github.com/Fission-AI/OpenSpec). The `domain-modeling` skill follows the approach of [Matt Pocock's skill of the same name](https://www.aihero.dev/skills-domain-modeling). Bundled schemas keep their own license files.
+[MIT](./LICENSE). Built on [OpenSpec](https://github.com/Fission-AI/OpenSpec). The `domain-modeling` skill follows the approach of [Matt Pocock's skill of the same name](https://www.aihero.dev/skills-domain-modeling).

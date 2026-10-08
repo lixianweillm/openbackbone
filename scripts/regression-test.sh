@@ -186,7 +186,7 @@ FAKE
   fi
   (cd "$target" && PATH="$fake_bin:$PATH" FAKE_OPEN_SPEC_STATE="$state" "$REPO_ROOT/init.sh" --with openspec) \
     > "$TEST_ROOT/output" 2>&1 || fail "rerun did not repair the incomplete OpenSpec initialization"
-  [ -f "$target/openspec/schemas/spec-driven-with-impact/LICENSE" ] || fail "rerun did not install the default schema"
+  [ -f "$target/openspec/schemas/spec-driven-with-impact/schema.yaml" ] || fail "rerun did not install the default schema"
   grep -qx '  - openspec' "$target/.openbackbone.yaml" || fail "manifest did not record the repaired component"
   printf 'ok: incomplete OpenSpec initialization self-heals on rerun\n'
 }

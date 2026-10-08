@@ -82,7 +82,8 @@ if [ -d openspec ]; then
     # moment it has delta specs.
     for change_dir in openspec/changes/*/; do
       change="$(basename "$change_dir")"
-      [ "$change" != archive ] && [ -d "$change_dir/specs" ] || continue
+      [ "$change" != archive ] || continue
+      [ -d "$change_dir/specs" ] || continue
       find "$change_dir/specs" -name '*.md' -print -quit | grep -q . || continue
       if ! out="$(openspec validate "$change" --type change --strict --no-interactive 2>&1)"; then
         printf '%s\n' "$out"
