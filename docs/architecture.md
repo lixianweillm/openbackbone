@@ -57,6 +57,13 @@ flowchart LR
 
 ## What the hook enforces
 
-Only what can be checked mechanically: existing ADRs are unchanged, a new ADR has no Requirement or Scenario sections, a staged `impact.md` has an entry in all five sections, and `openspec validate --all --strict` passes. Whether specs use glossary terms, and whether an ADR really passes the three tests, is left to the schema instructions and the `domain-modeling` skill.
+Only what can be checked mechanically:
+
+- existing ADRs are unchanged;
+- a new ADR has no Requirement or Scenario sections;
+- a staged `impact.md` has an entry in all five sections;
+- specs are valid, and so is every change that has delta specs (earlier artifacts can be committed on their own);
+- no archived change has open tasks, which is what keeps the "Living documents" tasks from being skipped.
+ Whether specs use glossary terms, and whether an ADR really passes the three tests, is left to the schema instructions and the `domain-modeling` skill.
 
 The hook shim is written only inside the repository's own hook directory. A `core.hooksPath` that points elsewhere is left alone and the component is reported as skipped.

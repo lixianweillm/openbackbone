@@ -40,7 +40,7 @@ cd /path/to/your-project
 
 Rerun the installer to upgrade. It rewrites only what it manages: the marked block in `AGENTS.md` and `CLAUDE.md`, the schemas, the skills, `docs/adr/README.md`, and `scripts/pre-commit.sh`. Your roadmap, glossary, architecture overview, ADRs, and README are never overwritten. `.openbackbone.yaml` records what was installed.
 
-If the OpenSpec CLI is missing, or `core.hooksPath` points outside the repository, that component is skipped and the installer prints how to fix it.
+If the OpenSpec CLI is missing, or `core.hooksPath` points outside the repository, that component is skipped and the installer prints how to fix it. A `CLAUDE.md` that is a symlink or already imports `AGENTS.md` is left as it is.
 
 ## Work with it
 
@@ -64,7 +64,15 @@ An ADR is written only when a decision is hard to reverse, surprising without co
 
 ### The pre-commit hook
 
-It rejects a commit that edits an existing ADR, adds an ADR containing Requirement or Scenario sections, stages an `impact.md` with an empty section, or fails `openspec validate --all --strict`. `OPENBACKBONE_SKIP_HOOKS=1` bypasses it for maintenance.
+It rejects a commit that:
+
+- edits, renames, or deletes an existing ADR;
+- adds an ADR containing Requirement or Scenario sections;
+- stages an `impact.md` with an empty section;
+- contains an invalid spec, or an invalid change that already has delta specs (a change with only a proposal can be committed);
+- archives a change that still has open tasks.
+
+`OPENBACKBONE_SKIP_HOOKS=1` bypasses it for maintenance.
 
 ## Repository layout
 

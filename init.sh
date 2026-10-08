@@ -66,7 +66,7 @@ parse_args() {
 }
 
 has_component() { case " $COMPONENTS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
-has_tool() { case ",$TOOLS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+has_tool() { case ",$TOOLS," in *",$1,"*|*",all,"*) return 0 ;; *) return 1 ;; esac; }
 mark_installed() { INSTALLED="$INSTALLED $1"; }
 
 # Progressive installation: when a component is skipped, record the exact
@@ -77,7 +77,10 @@ note_skip() { SKIPPED="${SKIPPED}  - $1"$'\n'"    Fix: $2"$'\n'; }
 resolve_source() {
   local script_path script_dir link
   # Follow symlinks so the installer still finds its sources when linked onto PATH
-  script_path="${BASH_SOURCE[0]:-$0}"
+  # Piped through `curl | bash` there is no script file, and the working
+  # directory is the target, never the source.
+  script_path="${BASH_SOURCE[0]:-}"
+  script_dir=""
   while [ -L "$script_path" ]; do
     link="$(readlink "$script_path")"
     case "$link" in
@@ -85,8 +88,12 @@ resolve_source() {
       *)  script_path="$(dirname "$script_path")/$link" ;;
     esac
   done
-  script_dir="$(cd "$(dirname "$script_path")" 2>/dev/null && pwd || true)"
-  if [ -n "$script_dir" ] && [ -f "$script_dir/openspec/schemas/$DEFAULT_SCHEMA/schema.yaml" ]; then
+  if [ -f "$script_path" ]; then
+    script_dir="$(cd "$(dirname "$script_path")" 2>/dev/null && pwd || true)"
+  fi
+  # templates/ exists only in the template repository, not in an installed project
+  if [ -n "$script_dir" ] && [ -f "$script_dir/templates/ROADMAP.md" ] \
+      && [ -f "$script_dir/openspec/schemas/$DEFAULT_SCHEMA/schema.yaml" ]; then
     SRC="$script_dir"
     SRC_VERSION="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null \
       || sed -n 's/^  "version": "\(.*\)",$/\1/p' "$SRC/package.json" 2>/dev/null | grep . \
@@ -177,6 +184,24 @@ check_markers() {
   done
 }
 
+# A CLAUDE.md that is a symlink (usually to AGENTS.md) or that already imports
+# AGENTS.md outside the managed block reaches the rules without our help.
+claude_needs_import() {
+  local f="$TARGET/CLAUDE.md"
+  if [ -L "$f" ]; then
+    log "CLAUDE.md is a symlink; left as is"
+    return 1
+  fi
+  [ -f "$f" ] || return 0
+  if awk -v begin="$MARKER_BEGIN" -v end="$MARKER_END" '
+       $0 == begin { skip=1; next } $0 == end { skip=0; next }
+       !skip && $0 == "@AGENTS.md" { found=1 } END { exit !found }' "$f"; then
+    log "CLAUDE.md already imports AGENTS.md; left as is"
+    return 1
+  fi
+  return 0
+}
+
 merge_instructions() {
   if [ "$SRC" = "$TARGET" ]; then
     log "Instruction merge skipped: target is the template repository itself"
@@ -184,7 +209,7 @@ merge_instructions() {
   fi
   merge_block "$SRC/AGENTS.md" "$TARGET/AGENTS.md"
   MANAGED_EXTRA="  - AGENTS.md  # marker block only"
-  if has_tool claude; then
+  if has_tool claude && claude_needs_import; then
     # Claude Code reads CLAUDE.md, not AGENTS.md: import one from the other
     local import
     import="$(mktemp)"

@@ -40,7 +40,7 @@ cd /path/to/your-project
 
 重复运行即升级。安装器只重写它托管的内容:`AGENTS.md` 和 `CLAUDE.md` 中的标记区块、schema、skill、`docs/adr/README.md` 和 `scripts/pre-commit.sh`。你的路线图、术语表、架构概览、ADR 和 README 不会被覆盖。`.openbackbone.yaml` 记录本次安装的内容。
 
-缺少 OpenSpec CLI,或 `core.hooksPath` 指向仓库之外时,对应组件会被跳过,安装器会给出修复方法。
+缺少 OpenSpec CLI,或 `core.hooksPath` 指向仓库之外时,对应组件会被跳过,安装器会给出修复方法。如果 `CLAUDE.md` 是符号链接或已经引入了 `AGENTS.md`,安装器不会改动它。
 
 ## 使用
 
@@ -64,7 +64,15 @@ proposal → specs → design → impact → tasks → 实现 → 归档
 
 ### pre-commit 钩子
 
-以下提交会被拒绝:修改已有 ADR;新增的 ADR 含有 Requirement 或 Scenario 小节;暂存的 `impact.md` 有空小节;`openspec validate --all --strict` 失败。维护时可用 `OPENBACKBONE_SKIP_HOOKS=1` 跳过。
+以下提交会被拒绝:
+
+- 修改、重命名或删除已有 ADR;
+- 新增的 ADR 含有 Requirement 或 Scenario 小节;
+- 暂存的 `impact.md` 有空小节;
+- 含有无效的规格,或已有 delta spec 的变更无效(只有 proposal 的变更可以提交);
+- 归档的变更仍有未完成的任务。
+
+维护时可用 `OPENBACKBONE_SKIP_HOOKS=1` 跳过。
 
 ## 仓库结构
 

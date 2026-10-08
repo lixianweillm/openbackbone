@@ -3,7 +3,8 @@
 #   1. accepted ADRs are not modified, deleted, or renamed
 #   2. new ADRs record a decision, not a spec
 #   3. every staged impact.md accounts for all five living documents
-#   4. OpenSpec artifacts validate
+#   4. specs, changes that have reached their delta specs, and archived
+#      changes validate
 # Called by Git's effective pre-commit shim; logic is version-controlled with the
 # repository, so upgrades need no hook reinstall.
 set -uo pipefail
@@ -72,8 +73,27 @@ done < <(git diff --cached --name-only --diff-filter=AM -- openspec/changes/ 2>/
 # --- Check 4: OpenSpec artifact validation ---
 if [ -d openspec ]; then
   if command -v openspec >/dev/null 2>&1; then
-    if ! openspec validate --all --strict; then
-      echo "[openbackbone] Commit rejected: openspec validate --all --strict failed."
+    if ! out="$(openspec validate --specs --strict --no-interactive 2>&1)"; then
+      printf '%s\n' "$out"
+      echo "[openbackbone] Commit rejected: a spec in openspec/specs/ is invalid."
+      fail=1
+    fi
+    # A change may be committed artifact by artifact; it is validated from the
+    # moment it has delta specs.
+    for change_dir in openspec/changes/*/; do
+      change="$(basename "$change_dir")"
+      [ "$change" != archive ] && [ -d "$change_dir/specs" ] || continue
+      find "$change_dir/specs" -name '*.md' -print -quit | grep -q . || continue
+      if ! out="$(openspec validate "$change" --type change --strict --no-interactive 2>&1)"; then
+        printf '%s\n' "$out"
+        echo "[openbackbone] Commit rejected: change '${change}' is invalid."
+        fail=1
+      fi
+    done
+    # Archiving with open tasks leaves a living document stale.
+    if ! out="$(openspec validate --archived --no-interactive 2>&1)"; then
+      printf '%s\n' "$out"
+      echo "[openbackbone] Commit rejected: an archived change still has open tasks."
       fail=1
     fi
   else

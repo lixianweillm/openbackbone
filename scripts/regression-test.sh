@@ -223,6 +223,71 @@ test_symlinked_entry_point() {
   printf 'ok: a symlinked installer resolves to its own sources\n'
 }
 
+test_piped_upgrade() {
+  local source="$TEST_ROOT/published" target="$TEST_ROOT/piped"
+  mkdir -p "$source" "$target"
+  (cd "$REPO_ROOT" && tar cf - --exclude=.git --exclude=node_modules .) | (cd "$source" && tar xf -)
+  new_repo "$source"
+  git -C "$source" add -A
+  git -C "$source" commit -q -m published
+  # A project that is already installed must still be upgraded from the
+  # published source, not mistaken for the source itself
+  run_install "$target" --with openspec,skills --tools agents
+  printf 'stale\n' > "$target/openspec/schemas/spec-driven-with-impact/schema.yaml"
+  (cd "$target" && PATH="$TEST_ROOT/bin:$PATH" OPENBACKBONE_REPO="$source" bash -s -- --tools agents < "$REPO_ROOT/init.sh") \
+    > "$TEST_ROOT/output" 2>&1 || { cat "$TEST_ROOT/output"; fail "piped installation failed"; }
+  grep -q 'cloning' "$TEST_ROOT/output" || fail "piped installer did not fetch the published source"
+  cmp -s "$target/openspec/schemas/spec-driven-with-impact/schema.yaml" \
+    "$REPO_ROOT/openspec/schemas/spec-driven-with-impact/schema.yaml" || fail "piped rerun did not upgrade the schema"
+  grep -q 'Engineering workflow' "$target/AGENTS.md" || fail "piped rerun skipped the instructions"
+  printf 'ok: a piped rerun upgrades an installed project from the published source\n'
+}
+
+test_claude_instructions() {
+  local target="$TEST_ROOT/claude-symlink" imported="$TEST_ROOT/claude-imported"
+  mkdir -p "$target" "$imported"
+  printf 'Project rules.\n' > "$target/AGENTS.md"
+  ln -s AGENTS.md "$target/CLAUDE.md"
+  run_install "$target" --with docs
+  [ -L "$target/CLAUDE.md" ] || fail "CLAUDE.md symlink was replaced"
+  [ "$(grep -cF "$BEGIN" "$target/AGENTS.md")" = 1 ] || fail "symlinked CLAUDE.md duplicated the managed block"
+  ! grep -qx '@AGENTS.md' "$target/AGENTS.md" || fail "AGENTS.md imports itself"
+  printf 'Notes.\n@AGENTS.md\n' > "$imported/CLAUDE.md"
+  cp "$imported/CLAUDE.md" "$TEST_ROOT/expected-claude-import"
+  run_install "$imported" --with docs
+  cmp "$imported/CLAUDE.md" "$TEST_ROOT/expected-claude-import" || fail "an existing AGENTS.md import was duplicated"
+  printf 'ok: CLAUDE.md symlinks and existing imports are left alone\n'
+}
+
+test_spec_validation_scope() {
+  local target="$TEST_ROOT/validation" calls="$TEST_ROOT/validate-calls" bin="$TEST_ROOT/validate-bin"
+  new_repo "$target"
+  run_install "$target" --with docs,hooks
+  mkdir -p "$bin" "$target/openspec/changes/drafting" "$target/openspec/changes/specified/specs/export"
+  cat > "$bin/openspec" <<'FAKE'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$VALIDATE_CALLS"
+case "$*" in *"${VALIDATE_REJECT:-none}"*) exit 1 ;; esac
+FAKE
+  chmod +x "$bin/openspec"
+  printf '## Why\n' > "$target/openspec/changes/drafting/proposal.md"
+  printf '## ADDED Requirements\n' > "$target/openspec/changes/specified/specs/export/spec.md"
+  git -C "$target" add -A
+  PATH="$bin:$PATH" VALIDATE_CALLS="$calls" git -C "$target" commit -q -m 'work in progress' > "$TEST_ROOT/output" 2>&1 \
+    || { cat "$TEST_ROOT/output"; fail "a proposal-only change blocked the commit"; }
+  grep -q '^validate --specs ' "$calls" || fail "specs were not validated"
+  grep -q '^validate specified --type change ' "$calls" || fail "a change with delta specs was not validated"
+  ! grep -q '^validate drafting ' "$calls" || fail "a change without delta specs was validated"
+  grep -q '^validate --archived ' "$calls" || fail "archived changes were not checked"
+  printf 'more\n' >> "$target/openspec/changes/drafting/proposal.md"
+  git -C "$target" add -A
+  if PATH="$bin:$PATH" VALIDATE_CALLS="$calls" VALIDATE_REJECT=--archived git -C "$target" commit -q -m archived > "$TEST_ROOT/output" 2>&1; then
+    fail "an archived change with open tasks was committed"
+  fi
+  grep -q 'still has open tasks' "$TEST_ROOT/output" || fail "open archived tasks not explained"
+  printf 'ok: changes are validated from their delta specs on; archives need finished tasks\n'
+}
+
 test_shared_hook_directory() {
   local target="$TEST_ROOT/shared-hooks" shared="$TEST_ROOT/shared-hook-dir"
   new_repo "$target"
@@ -308,6 +373,9 @@ test_existing_openspec_config
 test_openspec_recovery
 test_worktree_hooks
 test_symlinked_entry_point
+test_piped_upgrade
+test_claude_instructions
 test_shared_hook_directory
+test_spec_validation_scope
 test_discipline_hook
 printf 'All regression tests passed.\n'

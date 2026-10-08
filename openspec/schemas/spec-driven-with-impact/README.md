@@ -22,7 +22,8 @@ one step that keeps the project's other living documents in step with the change
   written in this step; the rest become tasks.
 - `tasks` ends with a "Living documents" group holding one task per `Planned:` entry.
 
-The pre-commit hook rejects an `impact.md` with an empty section.
+The pre-commit hook rejects an `impact.md` with an empty section, and an archived
+change whose tasks, including "Living documents", are not all checked.
 
 ## Decisions are not specs
 
