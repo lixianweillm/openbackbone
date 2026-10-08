@@ -9,6 +9,7 @@ What we intend to build, most certain first. An item is removed when the change 
 
 ## Next
 
+- Publish to npm so `npx openbackbone` works. The package manifest is ready; the name is unclaimed.
 - Block archiving while a "Living documents" task is still open. Today only the instructions say so.
 - A freshness report: which living documents have not changed since the last N archived changes.
 

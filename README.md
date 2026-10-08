@@ -24,12 +24,7 @@ npm install -g @fission-ai/openspec@latest
 curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
 ```
 
-Or through npm, or from a local clone:
-
-```bash
-npx openbackbone
-```
-
+Or from a local clone:
 
 ```bash
 git clone https://github.com/lixianweillm/openbackbone.git
@@ -74,7 +69,7 @@ It rejects a commit that edits an existing ADR, adds an ADR containing Requireme
 ## Repository layout
 
 ```text
-init.sh                 installer (also the npm bin)
+init.sh                 installer
 AGENTS.md               the rules installed into target projects
 openspec/schemas/       spec-driven-with-impact (default), minimalist
 skills/                 domain-modeling, openspec-git-discipline, tech-doc

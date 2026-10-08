@@ -220,7 +220,7 @@ test_symlinked_entry_point() {
     || { cat "$TEST_ROOT/output"; fail "symlinked entry point failed"; }
   grep -q 'local template repository' "$TEST_ROOT/output" || fail "symlinked entry point fell back to cloning"
   [ -f "$target/docs/adr/README.md" ] || fail "symlinked entry point did not install"
-  printf 'ok: the npm bin symlink resolves to the packaged sources\n'
+  printf 'ok: a symlinked installer resolves to its own sources\n'
 }
 
 test_shared_hook_directory() {

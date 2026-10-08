@@ -24,12 +24,7 @@ npm install -g @fission-ai/openspec@latest
 curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
 ```
 
-或通过 npm,或使用本地源码:
-
-```bash
-npx openbackbone
-```
-
+或使用本地源码:
 
 ```bash
 git clone https://github.com/lixianweillm/openbackbone.git

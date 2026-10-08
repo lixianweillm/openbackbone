@@ -4,7 +4,7 @@ How openbackbone is put together today. Reasons are in the [ADRs](./adr/).
 
 ## Overview
 
-openbackbone is a template repository plus one installer, reachable three ways: `npx openbackbone`, `curl | bash`, or a local clone. Nothing runs after installation except a Git hook and the OpenSpec CLI.
+openbackbone is a template repository plus one installer, run through `curl | bash` or from a local clone. Nothing runs after installation except a Git hook and the OpenSpec CLI.
 
 ```mermaid
 flowchart LR
@@ -29,7 +29,7 @@ flowchart LR
 | Path | Responsibility | Ownership in the target |
 |---|---|---|
 | `init.sh` | Resolve the source, install selected components, write `.openbackbone.yaml` | Not installed |
-| `package.json` | npm distribution; its `bin` is `init.sh`, so `npx openbackbone` runs the same installer | Not installed |
+| `package.json` | Package manifest for a future npm release; its `bin` is `init.sh`. Not published | Not installed |
 | `AGENTS.md` | The rules every agent follows; copied into a managed block | Managed block only |
 | `openspec/schemas/spec-driven-with-impact/` | The five-artifact workflow and its instructions | Replaced on rerun |
 | `openspec/schemas/minimalist/` | The light path for spikes | Replaced on rerun |

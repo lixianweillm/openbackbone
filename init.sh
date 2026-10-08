@@ -9,7 +9,6 @@
 #
 # Usage:
 #   ./init.sh [--with openspec,docs,skills,hooks] [--tools agents,claude] [--language English]
-#   npx openbackbone [options]
 #   curl -fsSL https://raw.githubusercontent.com/lixianweillm/openbackbone/main/init.sh | bash
 #
 # Environment variables:
@@ -44,7 +43,7 @@ warn() { printf '\033[1;33m[%s]\033[0m %s\n' "$NAME" "$*" >&2; }
 die()  { printf '\033[1;31m[%s]\033[0m %s\n' "$NAME" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,16p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
+  sed -n '2,15p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -77,7 +76,7 @@ note_skip() { SKIPPED="${SKIPPED}  - $1"$'\n'"    Fix: $2"$'\n'; }
 
 resolve_source() {
   local script_path script_dir link
-  # npm exposes this script through a symlink in node_modules/.bin
+  # Follow symlinks so the installer still finds its sources when linked onto PATH
   script_path="${BASH_SOURCE[0]:-$0}"
   while [ -L "$script_path" ]; do
     link="$(readlink "$script_path")"
