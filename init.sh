@@ -49,7 +49,14 @@ warn() { printf '\033[1;33m[%s]\033[0m %s\n' "$NAME" "$*" >&2; }
 die()  { printf '\033[1;31m[%s]\033[0m %s\n' "$NAME" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,19p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
+  # Piped through `curl | bash` there is no script file to read the header from
+  local self="${BASH_SOURCE[0]:-}"
+  if [ -f "$self" ]; then
+    sed -n '2,19p' "$self" | sed 's/^# \{0,1\}//'
+  else
+    echo "Usage: init.sh [--with openspec,docs,skills,hooks] [--tools agents,claude] [--language English] [--yes]"
+    echo "Details: ${DEFAULT_REPO}#install"
+  fi
   exit 0
 }
 

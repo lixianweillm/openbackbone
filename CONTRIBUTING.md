@@ -14,13 +14,15 @@ npm install -g @fission-ai/openspec@latest
 
 ```bash
 ./scripts/regression-test.sh
-openspec schema validate spec-driven-with-impact
+./scripts/e2e-test.sh
 openspec validate --specs --strict
 ```
 
+`regression-test.sh` stubs the OpenSpec CLI and covers the installer and the hook. `e2e-test.sh` uses the real CLI and takes a change through each schema; run it after touching a schema or a template.
+
 CI runs the same checks, plus `shellcheck`, on every pull request.
 
-The regression tests install into temporary repositories with a stub `openspec` and an isolated Git configuration; they do not touch your global hooks.
+Both scripts work in temporary repositories with an isolated Git configuration; they do not touch your global hooks, and the regression tests cannot reach your real npm.
 
 ## Keep the documents true
 

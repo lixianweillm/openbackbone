@@ -59,6 +59,12 @@ artifacts:
       that term first (domain-modeling skill), not to invent one inline.
 
 
+      For a NEW capability, open the file with a `## Purpose` section: one
+      or two sentences on what the capability is for. Archiving copies it
+      into the main spec, and a main spec without a written purpose fails
+      validation. Leave the section out when the capability already exists.
+
+
       A delta spec is built from up to four second-level sections. Use only
       the ones you need:
 
@@ -102,6 +108,12 @@ artifacts:
       Shape of a delta spec:
 
       ```
+
+      ## Purpose
+
+
+      Let a Customer keep their own copy of their Invoices.
+
 
       ## ADDED Requirements
 

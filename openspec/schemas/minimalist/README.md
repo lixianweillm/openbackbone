@@ -1,28 +1,28 @@
 # Minimalist OpenSpec Schema
 
-`minimalist` is for getting to build quickly with a direct `specs -> tasks` flow.
+`minimalist` gets you building quickly with a direct `specs -> tasks` flow.
 
-- Good fit: exploratory spikes, landing pages, and simple apps without heavy
-  technical design decisions.
-- Not a good fit: complete apps with multiple layers, database work, and broader
-  architecture concerns.
+- Good fit: exploratory spikes and small, well-scoped changes with no real
+  design decision in them.
+- Not a good fit: anything that changes structure, adds a dependency, or
+  makes a decision worth remembering. Use `spec-driven-with-impact`.
 
-In this project it is the lightweight schema for spikes: pass
-`--schema minimalist` when creating the change, or set it in
-`openspec/config.yaml` to switch the default.
+Pass `--schema minimalist` when creating the change:
 
-## Spec Format
+```bash
+openspec new change <name> --schema minimalist
+```
 
-When authoring `specs` artifacts in this schema:
-- Write each requirement as a user story:
-  `As a <role>, I want <capability>, so that <benefit>.`
-- Write acceptance criteria using Gherkin structure:
-  `Given ...`, `When ...`, `Then ...`
+Specs use the same delta format as the default schema (`## ADDED Requirements`,
+`### Requirement:`, `#### Scenario:`), so a spike validates, passes the
+pre-commit hook, and can be archived like any other change.
 
-## Associated Skills
+There is no impact step. A spike that graduates into real work goes back
+through the default schema; until then, fix by hand any living document the
+spike makes untrue.
 
-This schema declares its companion skills in `skills.txt`; `init.sh` reads that
-list and installs them into the target project's `.agents/skills/`.
+## Associated skills
 
-- `openspec-git-discipline` — git hygiene for OpenSpec propose/apply/archive
-  workflows.
+Declared in `skills.txt` and installed by `init.sh` for every selected agent target:
+
+- `openspec-git-discipline`: git checkpoints for propose, apply, and archive.

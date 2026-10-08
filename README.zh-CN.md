@@ -88,7 +88,7 @@ AGENTS.md               安装到目标项目的规则
 openspec/schemas/       spec-driven-with-impact(默认)、minimalist
 skills/                 domain-modeling、openspec-git-discipline、tech-doc
 templates/              路线图、术语表、架构概览的起始模板
-scripts/                pre-commit 检查、回归测试
+scripts/                pre-commit 检查、回归测试和端到端测试
 docs/                   openbackbone 自身的架构概览和 ADR
 ```
 

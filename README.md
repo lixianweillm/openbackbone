@@ -88,7 +88,7 @@ AGENTS.md               the rules installed into target projects
 openspec/schemas/       spec-driven-with-impact (default), minimalist
 skills/                 domain-modeling, openspec-git-discipline, tech-doc
 templates/              starting roadmap, glossary, architecture overview
-scripts/                pre-commit checks, regression tests
+scripts/                pre-commit checks, regression and end-to-end tests
 docs/                   architecture overview and ADRs for openbackbone itself
 ```
 

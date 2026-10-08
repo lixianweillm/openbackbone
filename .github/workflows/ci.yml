@@ -24,6 +24,8 @@ jobs:
         run: shellcheck init.sh scripts/*.sh
       - name: Regression tests
         run: ./scripts/regression-test.sh
+      - name: End-to-end tests against the real OpenSpec CLI
+        run: ./scripts/e2e-test.sh
       - name: Validate the schema and this repository's specs
         run: |
           openspec schema validate spec-driven-with-impact
